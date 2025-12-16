@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../services/prisma";
-import { sendSuccess, sendError } from "../utils/response";
+import { sendSuccess } from "../utils/response";
 import { ValidationError, NotFoundError } from "../utils/errors";
 
 // Get all categories
@@ -16,6 +16,26 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
         next(error);
     }
 };
+
+export const createCategoties = async (req: Request, res: Response, next: NextFunction) => {
+    const { name, slug, description } = req.body
+    console.log("---------", req.body)
+
+    try {
+        const category = await prisma.category.create({
+            data: {
+                name,
+                slug,
+                description
+            }
+        })
+
+        return sendSuccess(res, category, "Category created successfully", 200)
+    } catch (error) {
+        // console.log("hello------------------", error)
+        next(error)
+    }
+}
 
 // Get all products with pagination and filters
 export const getProducts = async (req: Request, res: Response, next: NextFunction) => {

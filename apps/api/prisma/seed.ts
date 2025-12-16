@@ -15,19 +15,6 @@ async function main() {
     console.log("🌱 Seeding database...");
 
     // Create admin user
-    const hashedPassword = await bcrypt.hash("admin123", 10);
-    const admin = await prisma.admin.upsert({
-        where: { username: "admin" },
-        update: {},
-        create: {
-            username: "admin",
-            email: "admin@example.com",
-            password: hashedPassword,
-            name: "Admin User",
-            isActive: true,
-        },
-    });
-    console.log("✅ Created admin user:", admin.username);
 
     // Create categories
     const categories = [

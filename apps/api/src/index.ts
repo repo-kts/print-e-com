@@ -30,22 +30,22 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Health check endpoint
 app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    message: "Custom Printing E-commerce API"
-  });
+    res.json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        message: "Custom Printing E-commerce API"
+    });
 });
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // API routes
-app.use("/api/auth", authRoutes);
-app.use("/api", customerRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/payment", paymentRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/customer", customerRoutes);
+app.use("/api/v1/admin", adminRoutes); // More specific route first
+app.use("/api/v1/payment", paymentRoutes);
 
 /**
  * WIP : since we are not using upload feature for now, we will not implement this with the user authentication in future.
@@ -61,6 +61,6 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
 });
