@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 // Customer Registration
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { email, password, name, phone } = req.body;
+        const { email, password, name, phone, isAdmin, isSuperAdmin } = req.body;
 
         if (!email || !password) {
             throw new ValidationError("Email and password are required");
@@ -40,6 +40,8 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
                         name: name || email.split("@")[0],
                         phone,
                         supabaseId: data.user.id,
+                        isAdmin,
+                        isSuperAdmin
                     },
                 });
 
@@ -121,9 +123,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             return sendError(res, "Invalid credentials", 401);
         }
 
+        const isAdmin = user.isAdmin
+
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, email: user.email, type: "customer" },
+            { userId: user.id, email: user.email, type: isAdmin ? "admin" : "customer" },
             JWT_SECRET,
             { expiresIn: "7d" }
         );

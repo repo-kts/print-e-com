@@ -97,3 +97,71 @@ export const customerAuth = async (
 };
 
 // Admin authentication - verifies user is an admin
+export const adminAuth = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            throw new UnauthorizedError("No token provided");
+        }
+
+        const token = authHeader.substring(7);
+
+        // Try Supabase first
+        if (supabase) {
+            const { data: { user }, error } = await supabase.auth.getUser(token);
+
+            if (!error && user) {
+                const dbUser = await prisma.user.findUnique({
+                    where: { supabaseId: user.id },
+                });
+
+                if (!dbUser || !dbUser.isAdmin) {
+                    throw new ForbiddenError("Admin access required");
+                }
+
+                req.user = {
+                    id: dbUser.id,
+                    email: dbUser.email,
+                    type: "admin",
+                };
+                return next();
+            }
+        }
+
+        // Fallback: Try local JWT verification
+        const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+        try {
+            const decoded = jwt.verify(token, jwtSecret) as { userId: string; email: string; type: string };
+
+            if (decoded.type !== "admin") {
+                throw new UnauthorizedError("Invalid token type");
+            }
+
+            const user = await prisma.user.findUnique({
+                where: { id: decoded.userId },
+            });
+
+            if (!user || !user.isAdmin) {
+                throw new ForbiddenError("Admin access required");
+            }
+
+            req.user = {
+                id: user.id,
+                email: user.email,
+                type: "admin",
+            };
+            return next();
+        } catch (jwtError) {
+            throw new UnauthorizedError("Invalid or expired token");
+        }
+    } catch (error) {
+        if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+            return sendError(res, error.message, error instanceof UnauthorizedError ? 401 : 403);
+        }
+        return sendError(res, "Authentication failed", 401);
+    }
+};

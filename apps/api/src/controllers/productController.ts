@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../services/prisma";
-import { sendSuccess} from "../utils/response";
+import { sendSuccess } from "../utils/response";
 import { ValidationError, NotFoundError } from "../utils/errors";
 
 // Get all categories

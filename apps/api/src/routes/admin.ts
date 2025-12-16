@@ -14,6 +14,7 @@ import {
     getAdminOrder,
     updateOrderStatus,
 } from "../controllers/orderController";
+import { adminAuth } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -23,7 +24,7 @@ router.get("/products", getProducts);
 router.get("/products/:id", getProduct);
 
 // Protected admin routes - apply middleware to all admin operations
-// router.use(adminAuth);
+router.use(adminAuth);
 
 // Product management (admin only)
 // WIP: add admin middleware to check the admin
