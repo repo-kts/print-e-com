@@ -42,10 +42,10 @@ app.get("/health", (req, res) => {
 });
 
 // API routes
-app.use("/api/auth", authRoutes);
-app.use("/api", customerRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/payment", paymentRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/customer", customerRoutes);
+app.use("/api/v1/admin", adminRoutes); // More specific route first
+app.use("/api/v1/payment", paymentRoutes);
 
 /**
  * WIP : since we are not using upload feature for now, we will not implement this with the user authentication in future.

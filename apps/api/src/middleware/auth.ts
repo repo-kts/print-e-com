@@ -31,6 +31,7 @@ export const customerAuth = async (
         }
 
         const token = authHeader.substring(7);
+        console.log("---", authHeader)
 
         // Try Supabase first
         if (supabase) {
@@ -95,46 +96,4 @@ export const customerAuth = async (
     }
 };
 
-// Admin authentication using JWT
-export const adminAuth = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            throw new UnauthorizedError("No token provided");
-        }
-
-        const token = authHeader.substring(7);
-        const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
-
-        const decoded = jwt.verify(token, jwtSecret) as { adminId: string; type: string };
-
-        if (decoded.type !== "admin") {
-            throw new UnauthorizedError("Invalid token type");
-        }
-
-        const admin = await prisma.admin.findUnique({
-            where: { id: decoded.adminId },
-        });
-
-        if (!admin || !admin.isActive) {
-            throw new ForbiddenError("Admin not found or inactive");
-        }
-
-        req.user = {
-            id: admin.id,
-            email: admin.email,
-            type: "admin",
-        };
-        return next();
-    } catch (error) {
-        if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
-            return sendError(res, error.message, error.statusCode);
-        }
-        return sendError(res, "Authentication failed", 401);
-    }
-};
-
+// Admin authentication - verifies user is an admin
