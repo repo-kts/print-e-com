@@ -301,11 +301,13 @@ export const searchProducts = async (req: Request, res: Response, next: NextFunc
         ])
 
         const data = {
-            page: pageNumber,
-            limit: limitNumber,
-            totalProducts,
-            totalPages: Math.ceil(totalProducts / limitNumber),
             products,
+            pagination: {
+                page: pageNumber,
+                limit: limitNumber,
+                totalProducts,
+                totalPages: Math.ceil(totalProducts / limitNumber),
+            },
         }
 
         return sendSuccess(
