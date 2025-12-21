@@ -320,6 +320,8 @@ export const updateOrderStatus = async (req: Request, res: Response, next: NextF
             "CANCELLED",
         ];
 
+        if (!id) throw new ValidationError('There is not id in params')
+
         if (!status || !validStatuses.includes(status)) {
             throw new ValidationError(`Status must be one of: ${validStatuses.join(", ")}`);
         }

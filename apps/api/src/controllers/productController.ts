@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "../services/prisma";
 import { sendSuccess } from "../utils/response";
 import { ValidationError, NotFoundError } from "../utils/errors";
+import { Prisma } from "../../generated/prisma/client";
 
 // Get all categories
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
@@ -223,6 +224,10 @@ export const addVariant = async (req: Request, res: Response, next: NextFunction
         const { id } = req.params;
         const { name, priceModifier, available } = req.body;
 
+        if (!id) {
+            throw new ValidationError("There is not id passed in the params")
+        }
+
         if (!name) {
             throw new ValidationError("Variant name is required");
         }
@@ -250,3 +255,66 @@ export const addVariant = async (req: Request, res: Response, next: NextFunction
     }
 };
 
+
+export const searchProducts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const {
+            name = "",
+            page = "1",
+            limit = "10"
+        } = req.query as {
+            name?: string;
+            page?: string;
+            limit?: string;
+        }
+
+        if (name.trim().length < 3) {
+            throw new ValidationError("please name with atleast 3 characters")
+        }
+
+        const pageNumber = Number(page)
+        const limitNumber = Number(limit)
+
+        if (isNaN(pageNumber) || isNaN(limitNumber)) {
+            throw new ValidationError("Page and limit must be number")
+        }
+
+        const skip = (pageNumber - 1) * limitNumber
+
+        const where: Prisma.ProductWhereInput = {
+            OR: [
+                { id: { contains: name } },
+                { name: { contains: name, mode: "insensitive" } },
+                { description: { contains: name, mode: "insensitive" } },
+                { categoryId: { contains: name } }
+            ]
+        }
+
+        const [products, totalProducts] = await Promise.all([
+            prisma.product.findMany({
+                where: where,
+                skip,
+                take: limitNumber,
+                orderBy: { name: "asc" }
+            }),
+            prisma.product.count({ where })
+        ])
+
+        const data = {
+            page: pageNumber,
+            limit: limitNumber,
+            totalProducts,
+            totalPages: Math.ceil(totalProducts / limitNumber),
+            products,
+        }
+
+        return sendSuccess(
+            res,
+            data,
+            "Data fetched successfully",
+            200
+        )
+    } catch (error) {
+        next(error)
+    }
+}
