@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import ProductImageGallery from "../../components/ProductImageGallery";
 import ProductRating from "../../components/ProductRating";
@@ -10,95 +11,150 @@ import SizeSelector from "../../components/SizeSelector";
 import QuantitySelector from "../../components/QuantitySelector";
 import ProductTabs from "../../components/ProductTabs";
 import RelatedProducts from "../../components/RelatedProducts";
+import { BarsSpinner } from "../../components/shared/BarsSpinner";
+import { getProduct, getProducts, type Product } from "../../../lib/api/products";
 
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [selectedSize, setSelectedSize] = useState("Large");
+  const router = useRouter();
+  
+  // State
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string>("");
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  // Sample product data - this would come from an API
-  const product = {
-    id: id,
-    name: "Trifold Card",
-    rating: 4.5,
-    reviewCount: 128,
-    currentPrice: 260,
-    originalPrice: 300,
-    discount: 40,
-    description:
-      "This graphic t-shirt which is perfect for any occasion. Crafted from a soft and breathable fabric, it offers superior comfort and style.",
-    images: [
-      "/products/trifold-1.jpg",
-      "/products/trifold-2.jpg",
-      "/products/trifold-3.jpg",
-      "/products/trifold-4.jpg",
-    ],
-    sizes: ["Small", "Medium", "Large", "X-Large"],
-    category: {
-      name: "T-shirts",
-      path: [
-        { label: "Home", href: "/" },
-        { label: "Shop", href: "/products" },
-        { label: "Men", href: "/products?category=men" },
-        { label: "T-shirts", href: "/products?category=t-shirts" },
-      ],
-    },
-    details: {
-      moreInfo: "451",
-      variant: "Shadow Navy / Army Green",
-      description:
-        "This product is excluded from all promotional discounts and offers. This product is excluded from all promotional discounts and offers. This product is excluded from all promotional discounts and offers.",
-      benefits: [
-        "Pay over time in interest-free installments with Affirm, Klarna or Afterpay. Join adiClub to get unlimited free standard shipping, returns, & exchanges.",
-        "Join adiClub to get unlimited free standard shipping, returns, & exchanges. Join adiClub to get unlimited free standard shipping, returns, &.",
-      ],
-    },
-  };
+  // Fetch product data
+  useEffect(() => {
+    const fetchProductData = async () => {
+      setLoading(true);
+      setError(null);
 
-  const relatedProducts = [
-    {
-      id: "1",
-      name: "Polo with Contrast Trims",
-      image: "/products/polo.jpg",
-      rating: 4.0,
-      currentPrice: 212,
-      originalPrice: 242,
-      discount: 20,
-    },
-    {
-      id: "2",
-      name: "Gradient Graphic T-shirt",
-      image: "/products/gradient-tshirt.jpg",
-      rating: 3.5,
-      currentPrice: 145,
-    },
-    {
-      id: "3",
-      name: "Polo with Tipping Details",
-      image: "/products/polo-tipping.jpg",
-      rating: 4.5,
-      currentPrice: 180,
-    },
-    {
-      id: "4",
-      name: "Black Striped T-shirt",
-      image: "/products/striped-tshirt.jpg",
-      rating: 5.0,
-      currentPrice: 120,
-      originalPrice: 150,
-      discount: 30,
-    },
-  ];
+      try {
+        // Fetch main product
+        const response = await getProduct(id);
+
+        if (response.success && response.data) {
+          const productData = response.data;
+          setProduct(productData);
+
+          // Set default variant if available
+          if (productData.variants && productData.variants.length > 0) {
+            setSelectedVariant(productData.variants[0].id);
+            setSelectedSize(productData.variants[0].name);
+          }
+
+          // Fetch related products (same category)
+          if (productData.categoryId) {
+            const relatedResponse = await getProducts({
+              category: productData.categoryId,
+              limit: 4,
+            });
+
+            if (relatedResponse.success && relatedResponse.data) {
+              // Filter out current product
+              const related = relatedResponse.data.products.filter(
+                (p) => p.id !== productData.id
+              );
+              setRelatedProducts(related);
+            }
+          }
+        } else {
+          setError("Product not found");
+        }
+      } catch (err: any) {
+        console.error("Error fetching product:", err);
+        setError(err.message || "Failed to load product");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductData();
+  }, [id]);
 
   const handleAddToCart = () => {
-    // Handle add to cart logic
+    // Handle add to cart logic (will be implemented in Phase 2)
     console.log("Add to cart:", {
-      productId: product.id,
+      productId: product?.id,
+      variantId: selectedVariant,
       size: selectedSize,
       quantity,
     });
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-center py-20">
+            <BarsSpinner />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center py-12">
+            <div className="text-red-600 text-lg mb-4">⚠️ {error || "Product Not Found"}</div>
+            <p className="text-gray-600 mb-4">
+              {error === "Product not found" 
+                ? "The product you're looking for doesn't exist or has been removed."
+                : "There was an error loading this product."}
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => router.back()}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => router.push("/products")}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Browse Products
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Build breadcrumbs
+  const breadcrumbs = [
+    { label: "Home", href: "/" },
+    { label: "Shop", href: "/products" },
+    ...(product.category
+      ? [{ label: product.category.name, href: `/products?category=${product.category.slug}` }]
+      : []),
+    { label: product.name, href: `/products/${product.id}` },
+  ];
+
+  // Prepare product images
+  const productImages = product.images?.map((img) => img.url) || ["/products/placeholder.jpg"];
+
+  // Prepare sizes from variants
+  const sizes = product.variants?.map((v) => v.name) || [];
+
+  // Calculate price
+  const currentPrice = Number(product.sellingPrice || product.basePrice);
+  const originalPrice = product.mrp ? Number(product.mrp) : undefined;
+  const discount = originalPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+    : undefined;
+
+  // Prepare tabs content
   const tabs = [
     {
       id: "details",
@@ -106,21 +162,45 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
       content: (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              More Info ({product.details.moreInfo})
-            </h3>
-            <p className="text-gray-600 mb-2">{product.details.variant}</p>
-            <p className="text-gray-600">{product.details.description}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+            <p className="text-gray-600 whitespace-pre-line">
+              {product.description || product.shortDescription || "No description available."}
+            </p>
           </div>
-          <div>
-            <ul className="space-y-2 text-gray-600">
-              {product.details.benefits.map((benefit, index) => (
-                <li key={index} className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-1">•</span>
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
+
+          {/* Specifications */}
+          {product.specifications && product.specifications.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Specifications</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {product.specifications.map((spec) => (
+                  <div key={spec.id} className="flex justify-between py-2 border-b border-gray-200">
+                    <span className="text-gray-600 font-medium">{spec.key}:</span>
+                    <span className="text-gray-900">{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Additional Info */}
+          <div className="space-y-2 text-sm text-gray-600">
+            {product.sku && <p>SKU: {product.sku}</p>}
+            {product.brand && <p>Brand: {product.brand.name}</p>}
+            {product.weight && <p>Weight: {product.weight} kg</p>}
+            {product.dimensions && <p>Dimensions: {product.dimensions}</p>}
+            {product.returnPolicy && (
+              <div>
+                <p className="font-medium text-gray-900 mt-4">Return Policy:</p>
+                <p>{product.returnPolicy}</p>
+              </div>
+            )}
+            {product.warranty && (
+              <div>
+                <p className="font-medium text-gray-900 mt-4">Warranty:</p>
+                <p>{product.warranty}</p>
+              </div>
+            )}
           </div>
         </div>
       ),
@@ -157,9 +237,39 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
               Write a Review
             </button>
           </div>
-          <div className="text-center py-12 text-gray-500">
-            <p>No reviews yet. Be the first to review this product!</p>
-          </div>
+
+          {/* Display reviews if available */}
+          {product.reviews && product.reviews.length > 0 ? (
+            <div className="space-y-4">
+              {product.reviews.map((review: any) => (
+                <div key={review.id} className="border-b border-gray-200 pb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={i < review.rating ? "text-yellow-400" : "text-gray-300"}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      by {review.user?.name || "Anonymous"}
+                    </span>
+                  </div>
+                  {review.title && (
+                    <h4 className="font-medium text-gray-900 mb-1">{review.title}</h4>
+                  )}
+                  {review.comment && <p className="text-gray-600 text-sm">{review.comment}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p>No reviews yet. Be the first to review this product!</p>
+            </div>
+          )}
         </div>
       ),
     },
@@ -176,17 +286,30 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     },
   ];
 
+  // Prepare related products for component
+  const relatedProductsData = relatedProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    image: p.images?.[0]?.url || "/products/placeholder.jpg",
+    rating: p.rating ? Number(p.rating) : 0,
+    currentPrice: Number(p.sellingPrice || p.basePrice),
+    originalPrice: p.mrp ? Number(p.mrp) : undefined,
+    discount: p.mrp
+      ? Math.round(((Number(p.mrp) - Number(p.sellingPrice || p.basePrice)) / Number(p.mrp)) * 100)
+      : undefined,
+  }));
+
   return (
     <div className="min-h-screen bg-white py-8">
       <div className="max-w-7xl mx-auto px-6">
         {/* Breadcrumbs */}
-        <Breadcrumbs items={product.category.path} />
+        <Breadcrumbs items={breadcrumbs} />
 
         {/* Main Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
           {/* Left Column - Product Images */}
           <div>
-            <ProductImageGallery images={product.images} productName={product.name} />
+            <ProductImageGallery images={productImages} productName={product.name} />
           </div>
 
           {/* Right Column - Product Info */}
@@ -195,36 +318,69 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
 
             {/* Rating */}
-            <ProductRating rating={product.rating} reviewCount={product.reviewCount} />
+            <ProductRating
+              rating={product.rating ? Number(product.rating) : 0}
+              reviewCount={product.totalReviews || 0}
+            />
 
             {/* Price */}
             <PriceDisplay
-              currentPrice={product.currentPrice}
-              originalPrice={product.originalPrice}
-              discount={product.discount}
+              currentPrice={currentPrice}
+              originalPrice={originalPrice}
+              discount={discount}
             />
 
-            {/* Description */}
-            <p className="text-gray-600 leading-relaxed">{product.description}</p>
+            {/* Short Description */}
+            {product.shortDescription && (
+              <p className="text-gray-600 leading-relaxed">{product.shortDescription}</p>
+            )}
+
+            {/* Stock Status */}
+            <div className="flex items-center gap-2">
+              {product.stock > 0 ? (
+                <>
+                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                  <span className="text-sm text-gray-600">
+                    In Stock ({product.stock} available)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                  <span className="text-sm text-red-600">Out of Stock</span>
+                </>
+              )}
+            </div>
 
             {/* Upload Design */}
             <UploadDesign />
 
-            {/* Size Selector */}
-            <SizeSelector
-              sizes={product.sizes}
-              selectedSize={selectedSize}
-              onSizeChange={setSelectedSize}
-            />
+            {/* Size/Variant Selector */}
+            {sizes.length > 0 && (
+              <SizeSelector
+                sizes={sizes}
+                selectedSize={selectedSize}
+                onSizeChange={(size) => {
+                  setSelectedSize(size);
+                  const variant = product.variants?.find((v) => v.name === size);
+                  if (variant) setSelectedVariant(variant.id);
+                }}
+              />
+            )}
 
             {/* Quantity and Add to Cart */}
             <div className="flex items-center gap-6 pt-4">
-              <QuantitySelector quantity={quantity} onQuantityChange={setQuantity} />
+              <QuantitySelector
+                quantity={quantity}
+                onQuantityChange={setQuantity}
+                max={product.stock}
+              />
               <button
                 onClick={handleAddToCart}
-                className="flex-1 px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                disabled={product.stock === 0}
+                className="flex-1 px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Add to Cart
+                {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
               </button>
             </div>
           </div>
@@ -234,7 +390,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         <ProductTabs tabs={tabs} />
 
         {/* Related Products */}
-        <RelatedProducts products={relatedProducts} />
+        {relatedProductsData.length > 0 && <RelatedProducts products={relatedProductsData} />}
       </div>
     </div>
   );

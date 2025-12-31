@@ -69,12 +69,22 @@ Required variables:
 # Generate Prisma Client
 bun run db:generate
 
-# Push schema to database
-bun run db:push
+# Run migrations (creates all tables)
+bun run db:migrate
 
-# Seed database with sample data
+# Seed database with comprehensive test data
 bun run db:seed
 ```
+
+**What gets seeded?**
+- 🏢 **3 Brands** (PrintHub, CustomWear, ArtPrints)
+- 📂 **12 Categories** (4 parent + 8 sub-categories)
+- 🛍️ **10 Products** with images, specs, variants, and stock
+- 🎟️ **4 Active Coupons** (WELCOME10, SAVE20, FLAT100, BULK50)
+- 👥 **2 Demo Users** (admin & customer with addresses)
+
+> 📖 See [`prisma/SEED_README.md`](prisma/SEED_README.md) for detailed documentation  
+> ⚡ See root [`SEED_QUICKSTART.md`](../../SEED_QUICKSTART.md) for quick start guide
 
 ### 4. Start Development Server
 

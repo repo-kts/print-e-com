@@ -1,30 +1,57 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import LoginIllustration from "../../components/LoginIllustration";
 import SocialLoginButton from "../../components/SocialLoginButton";
+import { useAuth } from "../../../contexts/AuthContext";
+import { signInWithGoogle, signInWithFacebook } from "../../../lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic
-    console.log("Login:", { email, password, rememberMe });
+    setError(null);
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      // Redirect to home page after successful login
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
-    // Handle Google login
-    console.log("Google login");
+  const handleGoogleLogin = async () => {
+    try {
+      setError(null);
+      await signInWithGoogle();
+      // User will be redirected to Google, then back to /auth/callback
+    } catch (err: any) {
+      setError(err.message || "Google sign in failed. Please try again.");
+    }
   };
 
-  const handleFacebookLogin = () => {
-    // Handle Facebook login
-    console.log("Facebook login");
+  const handleFacebookLogin = async () => {
+    try {
+      setError(null);
+      await signInWithFacebook();
+      // User will be redirected to Facebook, then back to /auth/callback
+    } catch (err: any) {
+      setError(err.message || "Facebook sign in failed. Please try again.");
+    }
   };
 
   return (
@@ -56,6 +83,13 @@ export default function LoginPage() {
               <span className="px-4 bg-white text-gray-500">OR</span>
             </div>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,9 +204,10 @@ export default function LoginPage() {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg"
+              disabled={loading}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Login
+              {loading ? "Logging in..." : "Login"}
             </button>
           </form>
 

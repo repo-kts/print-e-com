@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams, usePathname } from "next/navigation";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function Header() {
+  const { user, isAuthenticated, logout, loading } = useAuth();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -11,6 +16,14 @@ export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Sync search query with URL params when on products page
+  useEffect(() => {
+    if (pathname === '/products') {
+      const urlSearch = searchParams.get('search') || '';
+      setSearchQuery(urlSearch);
+    }
+  }, [searchParams, pathname]);
 
   const categories = [
     "Groceries",
@@ -58,31 +71,6 @@ export default function Header() {
               Welcome to worldwide PrintEcom!
             </div>
             <div className="flex items-center gap-4">
-              {/* Deliver to */}
-              <div className="flex items-center gap-1.5">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-blue-600"
-                >
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span className="text-gray-600">Deliver to</span>
-                <Link href="/addresses" className="text-blue-600 hover:underline font-medium">
-                  423651
-                </Link>
-              </div>
-
-              {/* Separator */}
-              <div className="h-4 w-px bg-gray-300"></div>
-
               {/* Track your order */}
               <Link href="/orders" className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 transition-colors">
                 <svg
@@ -171,7 +159,7 @@ export default function Header() {
               {/* Search Input */}
               <input
                 type="text"
-                placeholder="Search essentials, groceries and more..."
+                placeholder="Search for t-shirts, mugs, posters..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 py-3 px-2 bg-transparent outline-none text-gray-700 placeholder:text-gray-400"
@@ -206,64 +194,126 @@ export default function Header() {
             {/* Separator */}
             <div className="h-6 w-px bg-gray-300"></div>
 
-            {/* Sign Up/Sign In */}
+            {/* Sign Up/Sign In or User Menu */}
             <div className="relative" ref={userMenuRef}>
-              <button
-                className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span className="text-sm font-medium">Sign Up/Sign In</span>
-              </button>
-
-              {/* User Dropdown Menu */}
-              {isUserMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] overflow-hidden z-50">
-                  <Link
-                    href="/profile"
-                    className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    href="/addresses"
-                    className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Addresses
-                  </Link>
-                  <Link
-                    href="/orders"
-                    className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    My Orders
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Settings
-                  </Link>
-                  <hr className="border-gray-200 my-1" />
-                  <button className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                    Logout
-                  </button>
+              {loading ? (
+                // Loading state
+                <div className="flex items-center gap-2 text-gray-400">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="text-sm font-medium">Loading...</span>
                 </div>
+              ) : isAuthenticated ? (
+                // Authenticated User Menu
+                <>
+                  <button
+                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span className="text-sm font-medium">
+                      {user?.name || user?.email || 'Account'}
+                    </span>
+                  </button>
+
+                  {/* User Dropdown Menu */}
+                  {isUserMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] overflow-hidden z-50">
+                      <Link
+                        href="/profile"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        href="/addresses"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Addresses
+                      </Link>
+                      <Link
+                        href="/orders"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Settings
+                      </Link>
+                      <hr className="border-gray-200 my-1" />
+                      <button 
+                        onClick={() => {
+                          logout();
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                // Not Authenticated - Show Login/Signup Links
+                <>
+                  <button
+                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span className="text-sm font-medium">Sign Up/Sign In</span>
+                  </button>
+
+                  {/* Login/Signup Dropdown */}
+                  {isUserMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] overflow-hidden z-50">
+                      <Link
+                        href="/auth/login"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Sign In
+                      </Link>
+                      <Link
+                        href="/auth/signup"
+                        className="block w-full px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        Sign Up
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
