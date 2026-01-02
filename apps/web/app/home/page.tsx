@@ -8,16 +8,16 @@ import ProductListing from "../components/ProductListing";
 import Testimonials from "../components/Testimonials";
 
 export default function Home() {
-  return (
-    <div className="min-h-screen">
-      <HeroSection />
-      <PrintedBestProduct />
-      <PopularProducts />
-      <BestSeller />
-      <BrandLogos />
-      <CustomizableCarousel />
-      <ProductListing />
-      <Testimonials />
-    </div>
-  );
+    return (
+        <div className="min-h-screen">
+            <HeroSection />
+            <PrintedBestProduct />
+            <PopularProducts />
+            <BestSeller />
+            <BrandLogos />
+            <CustomizableCarousel />
+            <ProductListing />
+            <Testimonials />
+        </div>
+    );
 }

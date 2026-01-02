@@ -108,7 +108,7 @@ export async function getProducts(
   params?: ProductListParams
 ): Promise<ApiResponse<ProductListResponse>> {
   const queryParams = new URLSearchParams();
-  
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -116,7 +116,7 @@ export async function getProducts(
       }
     });
   }
-  
+
   const queryString = queryParams.toString();
   return get<ProductListResponse>(`/products${queryString ? `?${queryString}` : ''}`);
 }
@@ -136,7 +136,7 @@ export async function searchProducts(
   params?: Omit<ProductListParams, 'search'>
 ): Promise<ApiResponse<ProductListResponse>> {
   const queryParams = new URLSearchParams({ search: query });
-  
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -144,7 +144,7 @@ export async function searchProducts(
       }
     });
   }
-  
+
   return get<ProductListResponse>(`/search?${queryParams.toString()}`);
 }
 
