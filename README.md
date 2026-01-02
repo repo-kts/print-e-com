@@ -73,7 +73,9 @@ This will install dependencies for:
 Create `apps/web/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 #### Backend (apps/api)
@@ -81,22 +83,53 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 Create `apps/api/.env`:
 
 ```env
-PORT=3001
+DATABASE_URL=postgresql://username:password@localhost:5432/ecom
+PORT=4000
 NODE_ENV=development
+JWT_SECRET=your_jwt_secret
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-### Step 4: Start Development Servers
+### Step 4: Setup Database
+
+```bash
+cd apps/api
+
+# Generate Prisma Client
+bun run db:generate
+
+# Run database migrations
+bun run db:migrate
+
+# Seed database with test data (10 products, 4 coupons, categories, etc.)
+bun run db:seed
+```
+
+**🌱 What gets seeded?**
+- 3 Brands
+- 12 Categories (with hierarchy)
+- 10 Products with images, specs, variants
+- 4 Active Coupons
+- 2 Demo Users (admin + customer)
+
+> 📖 **Quick Start**: See [`SEED_QUICKSTART.md`](SEED_QUICKSTART.md)  
+> 📚 **Full Docs**: See [`apps/api/prisma/SEED_README.md`](apps/api/prisma/SEED_README.md)
+
+### Step 5: Start Development Servers
 
 #### Option A: Start All Apps (Recommended)
 
 ```bash
-# Start both frontend and backend
+# From root directory
 bun run dev
 ```
 
 This will start:
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:3001
+- **Backend API**: http://localhost:4000
 
 #### Option B: Start Individual Apps
 
@@ -108,10 +141,12 @@ bun run dev --filter=web
 bun run dev --filter=api
 ```
 
-### Step 5: Verify Everything Works
+### Step 6: Verify Everything Works
 
 1. **Frontend**: Open http://localhost:3000 in your browser
-2. **Backend**: Open http://localhost:3001/health in your browser (should return `{"status":"ok"}`)
+2. **Backend**: Open http://localhost:4000/health in your browser (should return `{"status":"ok"}`)
+3. **Products**: Visit http://localhost:3000/products to see seeded products
+4. **Prisma Studio**: Run `cd apps/api && bun run db:studio` to browse database
 
 ## 📁 Project Structure
 

@@ -44,12 +44,22 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const category = req.query.category as string;
+        const search = req.query.search as string;
+        const isFeatured = req.query.isFeatured as string;
+        const isBestSeller = req.query.isBestSeller as string;
+        const isNewArrival = req.query.isNewArrival as string;
+        const brand = req.query.brand as string;
+        const minPrice = req.query.minPrice as string;
+        const maxPrice = req.query.maxPrice as string;
+        const sortBy = (req.query.sortBy as string) || 'createdAt';
+        const sortOrder = (req.query.sortOrder as string) || 'desc';
         const skip = (page - 1) * limit;
 
         const where: any = {
             isActive: true,
         };
 
+        // Category filter
         if (category) {
             const categoryRecord = await prisma.category.findFirst({
                 where: {
@@ -65,6 +75,65 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
             }
         }
 
+        // Search filter
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+                { shortDescription: { contains: search, mode: "insensitive" } },
+            ];
+        }
+
+        // Feature flags filters
+        if (isFeatured === 'true') {
+            where.isFeatured = true;
+        }
+        if (isBestSeller === 'true') {
+            where.isBestSeller = true;
+        }
+        if (isNewArrival === 'true') {
+            where.isNewArrival = true;
+        }
+
+        // Brand filter
+        if (brand) {
+            const brandRecord = await prisma.brand.findFirst({
+                where: {
+                    OR: [
+                        { slug: brand.toLowerCase() },
+                        { name: { contains: brand, mode: "insensitive" } },
+                    ],
+                },
+            });
+
+            if (brandRecord) {
+                where.brandId = brandRecord.id;
+            }
+        }
+
+        // Price range filter
+        if (minPrice || maxPrice) {
+            where.basePrice = {};
+            if (minPrice) {
+                where.basePrice.gte = parseFloat(minPrice);
+            }
+            if (maxPrice) {
+                where.basePrice.lte = parseFloat(maxPrice);
+            }
+        }
+
+        // Sort configuration
+        const orderBy: any = {};
+        if (sortBy === 'price') {
+            orderBy.basePrice = sortOrder;
+        } else if (sortBy === 'rating') {
+            orderBy.rating = sortOrder;
+        } else if (sortBy === 'totalSold') {
+            orderBy.totalSold = sortOrder;
+        } else {
+            orderBy.createdAt = sortOrder;
+        }
+
         const [products, total] = await Promise.all([
             prisma.product.findMany({
                 where,
@@ -75,13 +144,12 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
                         where: { available: true },
                     },
                     images: {
-                        where: { isPrimary: true },
-                        take: 1,
+                        orderBy: { displayOrder: "asc" },
                     },
                 },
                 skip,
                 take: limit,
-                orderBy: { createdAt: "desc" },
+                orderBy,
             }),
             prisma.product.count({ where }),
         ]);
