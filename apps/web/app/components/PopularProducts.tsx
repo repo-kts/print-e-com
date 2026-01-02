@@ -8,13 +8,14 @@ export default function PopularProducts() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
+    console.log("---- products fetch in PopularProducts", products)
     useEffect(() => {
         const fetchPopularProducts = async () => {
             try {
                 setLoading(true);
                 const response = await getProducts({
-                    isFeatured: true,
-                    limit: 6,
+                    // isFeatured: true,
+                    limit: 8,
                     page: 1,
                 });
 
@@ -39,7 +40,7 @@ export default function PopularProducts() {
     // Loading skeleton
     if (loading) {
         return (
-            <section className="py-12 bg-white">
+            <section className="py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex items-center justify-between mb-8">
                         <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
@@ -64,7 +65,7 @@ export default function PopularProducts() {
 
     return (
         <section className="py-12 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
+            <div className="w-full px-10">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-3xl font-bold text-gray-900">Popular Products</h2>
                     <Link
@@ -94,7 +95,7 @@ export default function PopularProducts() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="flex-shrink-0 w-64 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden relative"
+                                className="flex-shrink-0 w-64 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow overflow-hidden relative"
                             >
                                 {/* Product Image */}
                                 <Link href={`/products/${product.id}`} className="block relative aspect-square bg-gray-100">
@@ -105,20 +106,27 @@ export default function PopularProducts() {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                                            <span className="text-gray-400 text-sm">No Image</span>
-                                        </div>
+                                        <img
+                                            src={'/images/pagz-logo.png'}
+                                            alt={''}
+                                            className="w-full h-full object-cover"
+                                        />
                                     )}
                                 </Link>
+                                {/*
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                                    <span className="text-gray-400 text-sm">No Image</span>
+                                    </div>
+                                    */}
 
                                 {/* Product Info */}
-                                <div className="p-4 pb-14">
+                                <div className="p-4">
                                     <Link href={`/products/${product.id}`}>
                                         <p className="text-sm font-semibold text-gray-900 mb-1">
-                                            {product.brand?.name || "Unknown Brand"}
-                                        </p>
-                                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                                             {product.shortDescription || product.name}
+                                        </p>
+                                        <p className="text-sm text-gray-600 line-clamp-2">
+                                            {product.category?.name || "Unknown category"}
                                         </p>
                                         <div className="flex items-center gap-2">
                                             {product.sellingPrice && product.sellingPrice < product.basePrice ? (
@@ -142,7 +150,7 @@ export default function PopularProducts() {
                                 {/* Add to Cart Button */}
                                 <button
                                     onClick={() => handleAddToCart(product.id)}
-                                    className="absolute bottom-4 right-4 w-10 h-10 bg-orange-500 hover:bg-orange-600 rounded-lg flex items-center justify-center text-white shadow-lg transition-colors"
+                                    className="absolute bottom-4 right-4 w-10 h-10 bg-orange-500 hover:bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg transition-colors"
                                     aria-label="Add to cart"
                                 >
                                     <svg

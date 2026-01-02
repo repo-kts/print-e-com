@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import { BadgePercent, MapPin, ShoppingCart, Truck, User } from "lucide-react";
-import Image from "next/image";
+import Image from "next/image"
 
 export default function Header() {
     const { user, isAuthenticated, logout, loading } = useAuth();
