@@ -94,7 +94,7 @@ export default function Header() {
     }, [lastScrollY]);
 
     return (
-        <header className="bg-white sticky top-0 z-50" ref={headerRef}>
+        <header className="sticky top-0 z-50" ref={headerRef}>
             {/* Top Bar - Hide on mobile */}
             <div className="hidden lg:block bg-gray-100">
                 <div className="w-full mx-auto px-4 sm:px-6 lg:px-30 py-4">
@@ -131,7 +131,7 @@ export default function Header() {
             </div>
 
             {/* Main Header */}
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-30 py-2">
+            <div className="bg-white w-full mx-auto px-4 sm:px-6 lg:px-30 py-2">
                 <div className="flex items-center justify-between gap-4 sm:gap-6">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 shrink-0">
@@ -375,11 +375,11 @@ export default function Header() {
             {/* Category Navigation Bar - Responsive and scrollable */}
             <div
                 ref={categoryBarRef}
-                className={`border-t border-gray-100 bg-white transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                className={`bg-white border-t border-gray-100 transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
                     }`}
             >
                 <div className="w-full px-4 sm:px-6 lg:px-30 py-3 lg:py-4">
-                    <div className="flex overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pb-2">
+                    <div className="flex xl:justify-center overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pb-2">
                         <div className="flex items-center gap-2 lg:gap-6 min-w-max">
                             {categories.map((category) => {
                                 const isActive = activeCategory === category;
@@ -389,8 +389,8 @@ export default function Header() {
                                     <div
                                         key={category}
                                         className={`relative flex items-center gap-1.5 px-4 py-2 lg:px-6 lg:py-3 rounded-2xl font-medium text-sm transition-colors whitespace-nowrap ${isActive
-                                                ? "bg-[#008ECC] text-white"
-                                                : "bg-[#F3F9FB] text-black hover:bg-gray-100"
+                                            ? "bg-[#008ECC] text-white"
+                                            : "bg-[#F3F9FB] text-black hover:bg-gray-100"
                                             }`}
                                         ref={(el) => {
                                             categoryRefs.current[category] = el;

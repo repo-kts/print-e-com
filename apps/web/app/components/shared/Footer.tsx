@@ -71,7 +71,7 @@ export default function Footer() {
             </div>
 
             {/* Spacer to accommodate the newsletter section */}
-            <div className="pt-10 lg:pt-40 bg-white">
+            <div className="pt-10 lg:pt-40 bg-white lg:bg-[#F0F0F0] ">
                 {/* Main Footer Content */}
                 <div className="bg-[#F0F0F0]">
                     <div className="w-full px-6 lg:px-30 py-12">

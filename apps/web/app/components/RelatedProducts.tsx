@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import ProductRating from "./ProductRating";
 import PriceDisplay from "./PriceDisplay";
 
@@ -22,7 +21,7 @@ interface RelatedProductsProps {
 export default function RelatedProducts({ products }: RelatedProductsProps) {
     return (
         <section className="mt-16 mb-20 py-40 bg-white">
-            <div className="w-full px-30">
+            <div className="w-full px-4 lg:px-6 xl:px-10">
                 <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
                     YOU MIGHT ALSO LIKE
                 </h2>
