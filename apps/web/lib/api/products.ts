@@ -53,6 +53,7 @@ export interface Product {
     isNewArrival: boolean;
     isBestSeller: boolean;
     rating?: number;
+    reviews: Review[];
     totalReviews: number;
     totalSold: number;
     returnPolicy?: string;
@@ -67,6 +68,26 @@ export interface Product {
     };
     images?: ProductImage[];
     variants?: ProductVariant[];
+    specifications: ProductSpecification[]
+}
+
+export interface Review {
+    id: string
+    productId: string
+    userId: string
+    rating: number
+    title: string
+    comment: string
+    images: string[]
+    isVerifiedPurchase: boolean
+    isHelpful: number
+    isApproved: boolean
+}
+export interface ProductSpecification {
+    id: string
+    productId: string
+    key: string
+    value: string
 }
 
 export interface ProductListParams {

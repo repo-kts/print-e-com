@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { generateSlug, getUniqueSlug } from "../constants/seed-utils";
 import { DEFAULT_STOCK } from "../constants/seed-constants";
 import { BOOK_PRINTOUTS, BOOK_BINDING_PRODUCTS, PageBasedPrice } from "../constants/seed-data";
+import { getProductImages } from "../constants/seed-images";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -48,7 +49,7 @@ async function main() {
     for (const printout of bookPrintouts) {
         const paperSize = printout.paperSize;
         const paperType = printout.paperType;
-        
+
         // B/W Single
         const bwSingleName = `Book ${paperSize} ${paperType} B/W Single Side Printout`;
         const bwSingleSlug = await getUniqueSlug(prisma, generateSlug(bwSingleName));
@@ -88,6 +89,14 @@ async function main() {
                         { tag: paperSize.toLowerCase() },
                         { tag: "bw" },
                     ],
+                },
+                images: {
+                    create: getProductImages("book", 2).map((url, index) => ({
+                        url,
+                        alt: `${bwSingleName} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
                 },
             },
         });

@@ -13,6 +13,7 @@ const seedScripts = [
     "seed:bill-books",
     "seed:pamphlets-brochures",
     "seed:maps",
+    "seed:reviews",
 ];
 
 async function runSeedScript(scriptName: string): Promise<void> {
