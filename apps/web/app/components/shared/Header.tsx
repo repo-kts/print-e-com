@@ -378,7 +378,7 @@ export default function Header() {
                 className={`bg-white border-t border-gray-100 transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
                     }`}
             >
-                <div className="w-full px-4 sm:px-6 lg:px-30 py-3 lg:py-4">
+                <div className="w-full px-4 sm:px-6 lg:px-30 py-3 lg:py-4 border-b border-gray-100">
                     <div className="flex xl:justify-center overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pb-2">
                         <div className="flex items-center gap-2 lg:gap-6 min-w-max">
                             {categories.map((category) => {

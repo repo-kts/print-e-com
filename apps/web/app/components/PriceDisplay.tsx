@@ -13,13 +13,13 @@ export default function PriceDisplay({
 }: PriceDisplayProps) {
     return (
         <div className="flex items-center gap-4">
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-xl lg:text-3xl font-bold text-gray-900">
                 {currency}
                 {currentPrice.toFixed(2)}
             </span>
             {originalPrice && originalPrice > currentPrice && (
                 <>
-                    <span className="text-xl text-gray-500 line-through">
+                    <span className="text-lg lg:text-xl text-gray-500 line-through">
                         {currency}
                         {originalPrice.toFixed(2)}
                     </span>
