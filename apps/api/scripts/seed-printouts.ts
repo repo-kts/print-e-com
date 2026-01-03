@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { generateSlug, getUniqueSlug } from "../constants/seed-utils";
 import { DEFAULT_STOCK } from "../constants/seed-constants";
 import { A4_PRINTOUTS, A3_PRINTOUTS, LAMINATION_PRODUCTS, BINDING_PRODUCTS, PageBasedPrice, TypeBasedPrice } from "../constants/seed-data";
+import { getProductImages } from "../constants/seed-images";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -83,7 +84,7 @@ async function main() {
     console.log("\n📄 Creating A4 printout products...");
     for (const printout of a4Printouts) {
         const paperType = printout.paperType;
-        
+
         // B/W Single
         const bwSingleName = `A4 ${paperType} B/W Single Side Printout`;
         const bwSingleSlug = await getUniqueSlug(prisma, generateSlug(bwSingleName));
@@ -120,6 +121,14 @@ async function main() {
                         { tag: "a4" },
                         { tag: "bw" },
                     ],
+                },
+                images: {
+                    create: getProductImages("printout", 2).map((url, index) => ({
+                        url,
+                        alt: `${bwSingleName} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
                 },
             },
         });
@@ -162,6 +171,14 @@ async function main() {
                         { tag: "bw" },
                     ],
                 },
+                images: {
+                    create: getProductImages("printout", 2).map((url, index) => ({
+                        url,
+                        alt: `${bwBothName} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
+                },
             },
         });
         console.log(`  ✅ Created: ${bwBothName}`);
@@ -202,6 +219,14 @@ async function main() {
                         { tag: "a4" },
                         { tag: "color" },
                     ],
+                },
+                images: {
+                    create: getProductImages("printout", 2).map((url, index) => ({
+                        url,
+                        alt: `${colorSingleName} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
                 },
             },
         });
@@ -244,6 +269,14 @@ async function main() {
                         { tag: "color" },
                     ],
                 },
+                images: {
+                    create: getProductImages("printout", 2).map((url, index) => ({
+                        url,
+                        alt: `${colorBothName} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
+                },
             },
         });
         console.log(`  ✅ Created: ${colorBothName}`);
@@ -253,7 +286,7 @@ async function main() {
     console.log("\n📄 Creating A3 printout products...");
     for (const printout of a3Printouts) {
         const paperType = printout.paperType;
-        
+
         // B/W Single
         const bwSingleName = `A3 ${paperType} B/W Single Side Printout`;
         const bwSingleSlug = await getUniqueSlug(prisma, generateSlug(bwSingleName));

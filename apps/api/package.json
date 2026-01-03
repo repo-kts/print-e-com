@@ -23,7 +23,10 @@
     "seed:bill-books": "bun scripts/seed-bill-books.ts",
     "seed:pamphlets-brochures": "bun scripts/seed-pamphlets-brochures.ts",
     "seed:maps": "bun scripts/seed-maps.ts",
-    "seed:all": "bun scripts/seed-all.ts"
+    "seed:reviews": "bun scripts/seed-reviews.ts",
+    "seed:all": "bun scripts/seed-all.ts",
+    "db:reset-seed": "bun scripts/reset-and-seed.ts",
+    "db:clear-seed": "bun scripts/clear-and-seed.ts"
   },
   "prisma": {
     "seed": "bun prisma/seed.ts"

@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { generateSlug, getUniqueSlug } from "../constants/seed-utils";
 import { DEFAULT_STOCK, PAPER_COLORS } from "../constants/seed-constants";
 import { BUSINESS_CARD_PRODUCTS, DESIGN_MAKING_CHARGE } from "../constants/seed-data";
+import { createProductImages } from "../constants/seed-helpers";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -81,6 +82,7 @@ async function main() {
                         { tag: "single-side" },
                     ],
                 },
+                images: createProductImages(singleSideName, "businessCard", 2),
             },
         });
         console.log(`  ✅ Created: ${singleSideName}`);

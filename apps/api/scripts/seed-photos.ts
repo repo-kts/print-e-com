@@ -5,6 +5,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { generateSlug, getUniqueSlug } from "../constants/seed-utils";
 import { DEFAULT_STOCK } from "../constants/seed-constants";
 import { GLOSSY_PHOTO_PRODUCTS, MATT_PHOTO_PRODUCTS, GLOSSY_LAMINATION_PRODUCTS } from "../constants/seed-data";
+import { getProductImages } from "../constants/seed-images";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
@@ -82,6 +83,14 @@ async function main() {
                         { tag: "glossy" },
                         { tag: photo.size.toLowerCase().replace(/x/g, "-") },
                     ],
+                },
+                images: {
+                    create: getProductImages("photo", 2).map((url, index) => ({
+                        url,
+                        alt: `${name} - Image ${index + 1}`,
+                        isPrimary: index === 0,
+                        displayOrder: index,
+                    })),
                 },
             },
         });
