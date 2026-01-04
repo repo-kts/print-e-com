@@ -94,6 +94,7 @@ export const LAMINATION_PRODUCTS: LaminationProduct[] = [
     {
         size: "A4",
         options: [
+            { type: "Not Required", price: 0 },
             { type: "Thin 50 Micron", price: 10 },
             { type: "Thick 125 Micron", price: 20 },
         ],
@@ -101,6 +102,7 @@ export const LAMINATION_PRODUCTS: LaminationProduct[] = [
     {
         size: "A3",
         options: [
+            { type: "Not Required", price: 0 },
             { type: "Thin 50 Micron", price: 30 },
             { type: "Thick 125 Micron", price: 40 },
         ],
@@ -112,7 +114,7 @@ export const BINDING_PRODUCTS: BindingProduct[] = [
     {
         type: "Not Required",
         prices: [
-            {pages: "O", price: 0}
+            { pages: "O", price: 0 }
         ]
     },
     {

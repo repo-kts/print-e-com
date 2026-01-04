@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Check, Shield, Clock, Package } from 'lucide-react';
+import { ProductHeader } from './ProductHeader';
 
 interface ProductFeaturesProps {
     features: string[];
@@ -40,8 +41,6 @@ export const ProductFeatures: React.FC<ProductFeaturesProps> = ({
         },
     ];
 
-    const displayGuarantees = guarantees || defaultGuarantees;
-
     return (
         <div className={cn('space-y-6', className)}>
             {features.length > 0 && (
@@ -60,26 +59,6 @@ export const ProductFeatures: React.FC<ProductFeaturesProps> = ({
                 </div>
             )}
 
-            <div>
-                <h3 className="font-hkgb text-lg sm:text-xl text-gray-900 mb-4">
-                    Service Guarantee
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {displayGuarantees.map((guarantee, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200">
-                            {guarantee.icon}
-                            <div>
-                                <div className="font-medium text-gray-900 text-sm sm:text-base">
-                                    {guarantee.title}
-                                </div>
-                                <div className="text-gray-500 text-xs sm:text-sm">
-                                    {guarantee.description}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 };

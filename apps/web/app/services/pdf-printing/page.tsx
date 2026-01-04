@@ -5,6 +5,7 @@ import { ProductPageTemplate } from '@/app/components/services/ProductPageTempla
 import { OptionSelector } from '@/app/components/services/print/OptionSelector';
 import { QuantitySelector } from '@/app/components/services/QuantitySelector';
 import { A4_PRINTOUTS, A3_PRINTOUTS, BINDING_PRODUCTS, LAMINATION_PRODUCTS } from '@/constant/services/pdf-printing'
+import { ProductData } from '@/types';
 
 type PaperSize = 'A4' | 'A3';
 type A4PaperType = '65 Gsm' | '70 Gsm' | '75 Gsm' | '100 Gsm' | '100 Gsm BOND';
@@ -14,6 +15,7 @@ type LaminationType = 'Thin 50 Micron' | 'Thick 125 Micron';
 type ColorType = 'bw' | 'color';
 type SideType = 'single' | 'both';
 type BindingPages = 'Upto 50 Pages' | 'Upto 100 Pages' | 'Upto 150 Pages' | 'Upto 200 Pages' | 'Upto 250 Pages' | 'Upto 300 Pages';
+type HardBindingTypes = 'Standard' | 'With Golden Print (Black Cover)' | 'With Silver Print (Red Cover)'
 
 const BINDING_PAGES_OPTIONS: BindingPages[] = [
     'Upto 50 Pages',
@@ -33,6 +35,7 @@ export default function PDFPrintingPage() {
     const [selectedSide, setSelectedSide] = useState<SideType>('single');
     const [selectedBindingPages, setSelectedBindingPages] = useState<BindingPages>('Upto 50 Pages');
     const [selectedLamination, setSelectedLamination] = useState<LaminationType>('Thin 50 Micron');
+    const [selectedHardBindingType, setSelectedHardBindingType] = useState<HardBindingTypes>('Standard');
     const [quantity, setQuantity] = useState<number>(1);
     const [priceBreakdown, setPriceBreakdown] = useState<Array<{ label: string; value: number }>>([]);
     const [totalPrice, setTotalPrice] = useState<number>(0);
@@ -40,20 +43,8 @@ export default function PDFPrintingPage() {
     // Get current paper options based on selected size
     const currentPaperOptions = selectedPaperSize === 'A4' ? A4_PRINTOUTS : A3_PRINTOUTS;
 
-    // Get current binding options based on selected size
-    const currentBindingOptions = BINDING_PRODUCTS.find(b => b.type === selectedPaperSize)
-
     // Get current lamination options based on selected size
     const currentLaminationOptions = LAMINATION_PRODUCTS.find(l => l.size === selectedPaperSize)?.options || [];
-
-    // Update paper type when size changes
-    useEffect(() => {
-        if (selectedPaperSize === 'A4') {
-            setSelectedPaperType('70 Gsm');
-        } else {
-            setSelectedPaperType('70 Gsm');
-        }
-    }, [selectedPaperSize]);
 
     // Calculate price whenever any selection changes
     useEffect(() => {
@@ -66,6 +57,7 @@ export default function PDFPrintingPage() {
         selectedSide,
         selectedBindingPages,
         selectedLamination,
+        selectedHardBindingType,
         quantity
     ]);
 
@@ -73,7 +65,7 @@ export default function PDFPrintingPage() {
         const breakdown: Array<{ label: string; value: number }> = [];
         let total = 0;
 
-        // 1. Calculate printing price
+        // 1. Calculate printing price with separate breakdowns
         const selectedPaper = currentPaperOptions.find(p => p.paperType === selectedPaperType);
         if (selectedPaper) {
             // Determine which price to use based on color and side
@@ -86,37 +78,42 @@ export default function PDFPrintingPage() {
             }
 
             const printPrice = selectedPaper.prices[priceKey] * quantity;
+
             breakdown.push({
-                label: `${selectedPaperSize} ${selectedPaperType} ${selectedColor === 'bw' ? 'B&W' : 'Color'} ${selectedSide === 'single' ? 'Single Side' : 'Both Sides'} (${quantity} pages)`,
+                label: `${selectedPaperSize} ${selectedPaperType} ${selectedSide} ${selectedColor} (${quantity} pages)`,
                 value: printPrice
             });
             total += printPrice;
         }
 
-        // 2. Calculate binding price
-        const binding = BINDING_PRODUCTS.find(b => b.type === selectedBindingType);
-        if (binding) {
-            // For Hard Binding, find by type, otherwise by pages
-            let bindingPriceObj;
+        // 2. Calculate binding price only if selected
+        if (selectedBindingType) {
+            let bindingPrice = 0;
+            let bindingLabel = ""
+
             if (selectedBindingType === 'Hard Binding') {
-                bindingPriceObj = binding.prices.find(p =>
-                    'type' in p && p.type === 'Standard'
-                ) || binding.prices[0];
+                const hardBinding = BINDING_PRODUCTS.find(b => b.type === 'Hard Binding');
+                const priceObj = hardBinding?.prices.find(p =>
+                    'type' in p && p.type === selectedHardBindingType
+                );
+
+                if (priceObj) {
+                    bindingPrice = priceObj.price;
+                    bindingLabel = `Hard Binding (${selectedHardBindingType})`;
+                }
             } else {
-                bindingPriceObj = binding.prices.find(p =>
+                const binding = BINDING_PRODUCTS.find(b => b.type === selectedBindingType);
+                const priceObj = binding?.prices.find(p =>
                     'pages' in p && p.pages === selectedBindingPages
-                ) || binding.prices[0];
+                );
+
+                if (priceObj) {
+                    bindingPrice = priceObj.price;
+                    bindingLabel = `${selectedBindingType} (${selectedBindingPages})`;
+                }
             }
 
-            if (bindingPriceObj) {
-                const bindingPrice = bindingPriceObj.price;
-                let bindingLabel = selectedBindingType;
-                if (selectedBindingType !== 'Hard Binding') {
-                    bindingLabel += ` (${selectedBindingPages})`;
-                } else {
-                    bindingLabel += ' (Standard)';
-                }
-
+            if (bindingPrice > 0) {
                 breakdown.push({
                     label: bindingLabel,
                     value: bindingPrice
@@ -125,7 +122,7 @@ export default function PDFPrintingPage() {
             }
         }
 
-        // 3. Calculate lamination price if selected
+        // 3. Calculate lamination price only if selected
         if (selectedLamination) {
             const lamination = currentLaminationOptions.find(l => l.type === selectedLamination);
             if (lamination) {
@@ -138,7 +135,10 @@ export default function PDFPrintingPage() {
             }
         }
 
-        setPriceBreakdown(breakdown);
+        // Filter out items with 0 value (optional, can remove if you want to show all)
+        const filteredBreakdown = breakdown.filter(item => item.value > 0);
+
+        setPriceBreakdown(filteredBreakdown);
         setTotalPrice(Number(total.toFixed(2)));
     };
 
@@ -155,21 +155,7 @@ export default function PDFPrintingPage() {
         }));
     };
 
-    // Get binding price for current selection
-    const getCurrentBindingPrice = () => {
-        const binding = BINDING_PRODUCTS.find(b => b.type === selectedBindingType);
-        if (!binding) return 0;
-
-        if (selectedBindingType === 'Hard Binding') {
-            const priceObj = binding.prices.find(p => 'type' in p && p.type === 'Standard') || binding.prices[0];
-            return priceObj?.price;
-        } else {
-            const priceObj = binding.prices.find(p => 'pages' in p && p.pages === selectedBindingPages) || binding.prices[0];
-            return priceObj?.price;
-        }
-    };
-
-    const productData = {
+    const productData: Partial<ProductData> = {
         category: 'pdf-printing',
         title: 'Professional PDF Printing Service',
         description: 'Get high-quality PDF printing with various paper options, binding types, and finishing services.',
@@ -183,6 +169,10 @@ export default function PDFPrintingPage() {
             'Various binding and lamination options',
             'Secure file handling',
             'Fast turnaround time',
+            'Custom Printing',
+            'Custom Printing',
+            'Custom Printing',
+            'Custom Printing',
         ],
     };
 
@@ -199,7 +189,8 @@ export default function PDFPrintingPage() {
             paperType: selectedPaperType,
             color: selectedColor,
             side: selectedSide,
-            bindingPages: selectedBindingPages,
+            bindingPages: selectedBindingType === 'Hard Binding' ? undefined : selectedBindingPages,
+            hardBindingType: selectedBindingType === 'Hard Binding' ? selectedHardBindingType : undefined,
             lamination: selectedLamination,
             quantity,
             totalPrice,
@@ -217,7 +208,8 @@ export default function PDFPrintingPage() {
             paperType: selectedPaperType,
             color: selectedColor,
             side: selectedSide,
-            bindingPages: selectedBindingPages,
+            bindingPages: selectedBindingType === 'Hard Binding' ? undefined : selectedBindingPages,
+            hardBindingType: selectedBindingType === 'Hard Binding' ? selectedHardBindingType : undefined,
             lamination: selectedLamination,
             quantity,
             totalPrice,
@@ -227,6 +219,8 @@ export default function PDFPrintingPage() {
         console.log('Buying now:', orderData);
         // Buy now logic here
     };
+
+    // Features component to show above price breakdown
 
     return (
         <ProductPageTemplate
@@ -250,7 +244,11 @@ export default function PDFPrintingPage() {
                         { id: 'a3', label: 'A3', value: 'A3' },
                     ]}
                     selectedValue={selectedPaperSize}
-                    onSelect={(value) => setSelectedPaperSize(value as PaperSize)}
+                    onSelect={(value) => {
+                        setSelectedPaperSize(value as PaperSize);
+                        // Reset paper type when size changes
+                        setSelectedPaperType(value === 'A4' ? '70 Gsm' : '70 Gsm');
+                    }}
                     layout="inline"
                 />
 
@@ -302,18 +300,18 @@ export default function PDFPrintingPage() {
                                 type="button"
                                 onClick={() => setSelectedBindingType(binding.type as BindingType)}
                                 className={`
-                  p-3 sm:p-4 rounded-xl border text-center transition-all duration-200
-                  ${selectedBindingType === binding.type
+                                    p-3 sm:p-4 rounded-xl border text-center transition-all duration-200
+                                    ${selectedBindingType === binding.type
                                         ? 'border-[#008ECC] bg-blue-50'
                                         : 'border-gray-200 hover:border-gray-300'
                                     }
-                `}
+                                `}
                             >
                                 <div className="font-medium text-gray-900 text-sm sm:text-base mb-1">
                                     {binding.type}
                                 </div>
                                 <div className="text-xs sm:text-sm text-gray-600">
-                                    From ₹{binding.prices[0].price.toFixed(2)}
+                                    From ₹{binding.prices[0]?.price.toFixed(2)}
                                 </div>
                             </button>
                         ))}
@@ -346,37 +344,33 @@ export default function PDFPrintingPage() {
                     {/* Hard Binding Type Selection */}
                     {selectedBindingType === 'Hard Binding' && (
                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                                Hard Binding Type
-                            </label>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {BINDING_PRODUCTS
-                                    .find(b => b.type === 'Hard Binding')
-                                    ?.prices.map((price) => (
-                                        <button
-                                            key={'type' in price ? price.type : 'standard'}
-                                            type="button"
-                                            onClick={() => {
-                                                // For Hard Binding, we don't need to set pages, just update price
-                                                // We'll keep selectedBindingPages as is
-                                            }}
-                                            className={`
-                        p-3 sm:p-4 rounded-xl border text-center transition-all duration-200
-                        ${'type' in price && price.type === 'Standard'
-                                                    ? 'border-[#008ECC] bg-blue-50'
-                                                    : 'border-gray-200 hover:border-gray-300'
-                                                }
-                      `}
-                                        >
-                                            <div className="font-medium text-gray-900 text-sm sm:text-base mb-1">
-                                                {'type' in price ? price.type : 'Standard'}
-                                            </div>
-                                            <div className="text-lg font-hkgb text-[#008ECC]">
-                                                ₹{price.price.toFixed(2)}
-                                            </div>
-                                        </button>
-                                    ))}
-                            </div>
+                            <OptionSelector
+                                title="Hard Binding Type"
+                                options={(() => {
+                                    const hardBinding = BINDING_PRODUCTS?.find(b => b.type === 'Hard Binding');
+                                    return hardBinding?.prices.map(price => {
+                                        if ('type' in price) {
+                                            return {
+                                                id: price.type.toLowerCase().replace(/ /g, '-'),
+                                                label: price.type,
+                                                value: price.type,
+                                                price: price.price
+                                            };
+                                        }
+                                        return {
+                                            id: 'standard',
+                                            label: 'Standard',
+                                            value: 'Standard',
+                                            price: price.price
+                                        };
+                                    }) || [];
+                                })()}
+                                selectedValue={selectedHardBindingType}
+                                onSelect={(value) => setSelectedHardBindingType(value as HardBindingTypes)}
+                                layout="grid"
+                                columns={3}
+                                showPrice={true}
+                            />
                         </div>
                     )}
                 </div>

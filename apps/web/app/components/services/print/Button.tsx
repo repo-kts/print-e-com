@@ -24,7 +24,7 @@ export const Button: React.FC<ButtonProps> = ({
     ...props
 }) => {
     const variantClasses = {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        primary: 'bg-[#1EADD8] text-white hover:bg-[#1EADD8]',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
     return (
         <button
             className={cn(
-                'inline-flex items-center justify-center rounded-lg font-medium',
+                'inline-flex items-center justify-center rounded-lg font-medium cursor-pointer',
                 'transition-all duration-200 focus-visible:outline-none focus-visible:ring-2',
                 'focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
                 variantClasses[variant],

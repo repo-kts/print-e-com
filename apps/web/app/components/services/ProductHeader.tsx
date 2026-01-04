@@ -23,9 +23,6 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
 }) => {
     return (
         <div className="mb-6 sm:mb-8">
-            <div className="mb-4">
-                <Breadcrumb items={breadcrumbItems} />
-            </div>
 
             <h1 className="font-hkgb text-2xl sm:text-3xl text-gray-900 mb-3">
                 {title}
