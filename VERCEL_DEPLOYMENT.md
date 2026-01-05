@@ -193,10 +193,10 @@ The `apps/web/vercel.json` is already configured. Vercel will:
 ### Backend Build
 
 The `apps/api/vercel.json` is configured to:
-- Generate Prisma client during build
+- Generate Prisma client during build using `build:vercel` script
 - Deploy the Express app as serverless functions
 
-**Important**: Make sure Prisma client is generated before deployment. The build command includes `db:generate`.
+**Important**: The build command automatically runs `npx prisma generate` to create the Prisma client. This is handled by the `build:vercel` script in `package.json`.
 
 ## Post-Deployment Steps
 
@@ -236,8 +236,9 @@ NEXT_PUBLIC_API_URL=https://your-api.vercel.app
    - Check database firewall allows Vercel IPs
 
 3. **Prisma client not found:**
-   - Add `db:generate` to build command
-   - Or run `npx prisma generate` manually before deployment
+   - The `build:vercel` script should automatically generate it
+   - Verify `prisma` is in `devDependencies` in `package.json`
+   - Check build logs to ensure `npx prisma generate` runs successfully
 
 ### Frontend Issues
 
