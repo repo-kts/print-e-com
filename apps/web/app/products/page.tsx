@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard from "../components/ProductCard";
 import ProductFilters from "../components/ProductFilters";
@@ -15,14 +15,13 @@ function ProductsPageChild() {
     const searchParams = useSearchParams();
 
     // State
-    const [products, setProducts] = useState<Product[]>([]);
+    const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all fetched products
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalProducts, setTotalProducts] = useState(0);
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);3
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [sortBy, setSortBy] = useState<string>("featured");
 
     // Filters
     const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
@@ -43,10 +42,10 @@ function ProductsPageChild() {
             setError(null);
 
             try {
-                // Build API params
+                // Build API params - increase limit to get more products for client-side filtering
                 const params: ProductListParams = {
-                    page: currentPage,
-                    limit: PRODUCTS_PER_PAGE,
+                    page: 1, // Always fetch from page 1 for client-side filtering
+                    limit: 1000, // Fetch more products to allow proper client-side filtering
                 };
 
                 // Add search if present
@@ -59,28 +58,66 @@ function ProductsPageChild() {
                     params.category = categoryParam;
                 }
 
-                // Add brand filter
-                if (selectedBrands.length > 0) {
-                    params.brand = selectedBrands[0]; // API supports single brand for now
-                }
+                // Add brand filter - API might support multiple, but for now we'll filter client-side if multiple
+                // Note: API currently supports single brand, so we filter client-side for multiple brands
 
                 // Add price range filter
                 if (selectedPriceRanges.length > 0) {
-                    // Parse first price range (e.g., "$0-$50" -> min: 0, max: 50)
-                    const range = selectedPriceRanges[0]?.replace("$", "").split("-") || [];
-                    if (range[0]) params.minPrice = parseInt(range[0] || "0");
-                    if (range[1]) params.maxPrice = parseInt(range[1] || "0");
+                    // Parse price ranges - handle multiple ranges by taking the union
+                    let minPrice: number | undefined;
+                    let maxPrice: number | undefined;
+
+                    selectedPriceRanges.forEach((rangeStr) => {
+                        if (rangeStr.includes("+")) {
+                            // Handle "₹5000+" case - minimum price only
+                            const min = parseInt(rangeStr.replace(/₹/g, "").replace("+", "").trim()) || 0;
+                            if (minPrice === undefined || min < minPrice) minPrice = min;
+                            // No max for "+" ranges
+                        } else {
+                            // Handle "₹0-₹500" case
+                            const cleanRange = rangeStr.replace(/₹/g, "").trim();
+                            const range = cleanRange.split("-");
+                            const rangeMin = parseInt(range[0]?.trim() || "0") || 0;
+                            const rangeMax = parseInt(range[1]?.trim() || "0") || 0;
+
+                            // For union of ranges, we need min of all mins and max of all maxes
+                            if (minPrice === undefined || rangeMin < minPrice) minPrice = rangeMin;
+                            if (maxPrice === undefined || rangeMax > maxPrice) maxPrice = rangeMax;
+                        }
+                    });
+
+                    if (minPrice !== undefined) params.minPrice = minPrice;
+                    if (maxPrice !== undefined) params.maxPrice = maxPrice;
+                }
+
+                // Don't apply category/brand/collection filters at API level when doing client-side filtering
+                // This allows multiple selections to work properly with OR logic
+                // Only apply if single selection (for optimization)
+                if (selectedTags.length === 1) {
+                    params.category = selectedTags[0];
+                }
+
+                // Only apply collection filter if single selection
+                if (selectedCollections.length === 1 && !selectedCollections.includes("All products")) {
+                    const collection = selectedCollections[0];
+                    if (collection === "Best sellers") {
+                        params.isBestSeller = true;
+                    } else if (collection === "New arrivals") {
+                        params.isNewArrival = true;
+                    } else if (collection === "Featured") {
+                        params.isFeatured = true;
+                    }
                 }
 
                 // Call API
                 const response = await getProducts(params);
 
                 if (response.success && response.data) {
-                    setProducts(response.data.products);
-                    setTotalPages(response.data.pagination.totalPages);
-                    setTotalProducts(response.data.pagination.total);
+                    // Store all products - filtering will be done in useMemo
+                    setAllProducts(response.data.products);
                 } else {
                     setError(response.error || "Failed to load products");
+                    setAllProducts([]);
                 }
             } catch (err: any) {
                 console.error("Error fetching products:", err);
@@ -92,21 +129,121 @@ function ProductsPageChild() {
 
         fetchProducts();
     }, [
-        currentPage,
         searchQuery,
         categoryParam,
-        selectedBrands,
-        selectedPriceRanges,
+        selectedPriceRanges, // Only fetch when price ranges change (affects API call)
     ]);
 
-    // Reset to page 1 when filters change
+    // Memoized filtered products - prevents re-rendering filters
+    const filteredProducts = useMemo(() => {
+        let products = [...allProducts];
+
+        // Filter by multiple brands (OR logic - product matches ANY selected brand)
+        if (selectedBrands.length > 0) {
+            products = products.filter((product) =>
+                product.brand?.name && selectedBrands.includes(product.brand.name)
+            );
+        }
+
+        // Filter by multiple categories (OR logic - product matches ANY selected category)
+        if (selectedTags.length > 0) {
+            products = products.filter((product) =>
+                product.category?.name && selectedTags.includes(product.category.name)
+            );
+        }
+
+        // Filter by size in specifications (OR logic - product matches ANY selected size)
+        if (selectedSizes.length > 0) {
+            products = products.filter((product) => {
+                if (!product.specifications || product.specifications.length === 0) {
+                    return false;
+                }
+                // Check if any specification key or value matches ANY selected size
+                return product.specifications.some((spec) => {
+                    const specKey = (spec.key || "").toLowerCase();
+                    const specValue = (spec.value || "").toLowerCase();
+                    return selectedSizes.some((size) => {
+                        const sizeLower = size.toLowerCase();
+                        // Check if size appears in key (e.g., "Size: A4") or value (e.g., "A4")
+                        return (specKey.includes("size") && specValue.includes(sizeLower)) ||
+                               specValue === sizeLower ||
+                               specValue.includes(sizeLower);
+                    });
+                });
+            });
+        }
+
+        // Filter by multiple collections (OR logic - product matches ANY selected collection)
+        if (selectedCollections.length > 0 && !selectedCollections.includes("All products")) {
+            products = products.filter((product) => {
+                return selectedCollections.some((collection) => {
+                    if (collection === "Best sellers") return product.isBestSeller;
+                    if (collection === "New arrivals") return product.isNewArrival;
+                    if (collection === "Featured") return product.isFeatured;
+                    return false;
+                });
+            });
+        }
+
+        return products;
+    }, [allProducts, categoryParam, selectedBrands, selectedTags, selectedSizes, selectedCollections]);
+
+    // Memoized sorted products
+    const sortedProducts = useMemo(() => {
+        const products = [...filteredProducts];
+
+        switch (sortBy) {
+            case "newest":
+                return products.sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                );
+            case "price-low":
+                return products.sort((a, b) => {
+                    const priceA = Number(a.sellingPrice || a.basePrice);
+                    const priceB = Number(b.sellingPrice || b.basePrice);
+                    return priceA - priceB;
+                });
+            case "price-high":
+                return products.sort((a, b) => {
+                    const priceA = Number(a.sellingPrice || a.basePrice);
+                    const priceB = Number(b.sellingPrice || b.basePrice);
+                    return priceB - priceA;
+                });
+            case "rating":
+                return products.sort((a, b) => {
+                    const ratingA = a.rating || 0;
+                    const ratingB = b.rating || 0;
+                    return ratingB - ratingA;
+                });
+            case "featured":
+            default:
+                // Featured first, then by creation date
+                return products.sort((a, b) => {
+                    if (a.isFeatured && !b.isFeatured) return -1;
+                    if (!a.isFeatured && b.isFeatured) return 1;
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                });
+        }
+    }, [filteredProducts, sortBy]);
+
+    // Memoized paginated products
+    const paginatedProducts = useMemo(() => {
+        const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+        const endIndex = startIndex + PRODUCTS_PER_PAGE;
+        return sortedProducts.slice(startIndex, endIndex);
+    }, [sortedProducts, currentPage]);
+
+    // Calculate totals
+    const totalProducts = sortedProducts.length;
+    const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
+
+    // Reset to page 1 when filters change (but not when products are just filtered)
     useEffect(() => {
         setCurrentPage(1);
     }, [
         searchQuery,
         categoryParam,
         selectedSizes,
-        selectedColors,
         selectedPriceRanges,
         selectedBrands,
         selectedCollections,
@@ -378,15 +515,16 @@ function ProductsPageChild() {
                                         <span className="text-amber-600 font-medium">No results found</span>
                                     ) : (
                                         <>
-                                            Showing {products.length} of {totalProducts} product{totalProducts !== 1 ? 's' : ''}
+                                            Showing {paginatedProducts.length} of {totalProducts} product{totalProducts !== 1 ? 's' : ''}
                                             {categoryParam && ` in ${categoryParam}`}
                                         </>
                                     )}
                                 </p>
 
                                 {/* Active Filters Count - Mobile */}
-                                {(selectedSizes.length > 0 || selectedColors.length > 0 ||
-                                    selectedPriceRanges.length > 0 || selectedBrands.length > 0) && (
+                                {(selectedSizes.length > 0 || selectedPriceRanges.length > 0 ||
+                                    selectedBrands.length > 0 || selectedTags.length > 0 ||
+                                    selectedCollections.length > 0) && (
                                         <button
                                             onClick={handleClearAllFilters}
                                             className="lg:hidden text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1 border border-blue-200 rounded-lg hover:bg-blue-50"
@@ -416,7 +554,11 @@ function ProductsPageChild() {
                                 </div>
 
                                 {/* Sort Dropdown */}
-                                <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
                                     <option value="featured">Featured</option>
                                     <option value="newest">Newest First</option>
                                     <option value="price-low">Price: Low to High</option>
@@ -427,9 +569,26 @@ function ProductsPageChild() {
                         </div>
 
                         {/* Active Filters - Desktop */}
-                        {(selectedSizes.length > 0 || selectedColors.length > 0 ||
-                            selectedPriceRanges.length > 0 || selectedBrands.length > 0) && (
+                        {(selectedSizes.length > 0 || selectedPriceRanges.length > 0 ||
+                            selectedBrands.length > 0 || selectedTags.length > 0 ||
+                            selectedCollections.length > 0 || categoryParam) && (
                                 <div className="hidden lg:flex flex-wrap gap-2 mb-4">
+                                    {/* Show category from URL param */}
+                                    {categoryParam && (
+                                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">
+                                            Category: {categoryParam}
+                                            <button
+                                                onClick={() => {
+                                                    const url = new URL(window.location.href);
+                                                    url.searchParams.delete('category');
+                                                    window.location.href = url.toString();
+                                                }}
+                                                className="ml-1 hover:text-blue-900"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </span>
+                                    )}
                                     {selectedSizes.map(size => (
                                         <span key={size} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">
                                             Size: {size}
@@ -463,7 +622,31 @@ function ProductsPageChild() {
                                             </button>
                                         </span>
                                     ))}
-                                    {(selectedSizes.length > 0 || selectedPriceRanges.length > 0 || selectedBrands.length > 0) && (
+                                    {selectedTags.map(tag => (
+                                        <span key={tag} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">
+                                            Category: {tag}
+                                            <button
+                                                onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
+                                                className="ml-1 hover:text-blue-900"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {selectedCollections.filter(c => c !== "All products").map(collection => (
+                                        <span key={collection} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">
+                                            {collection}
+                                            <button
+                                                onClick={() => setSelectedCollections(prev => prev.filter(c => c !== collection))}
+                                                className="ml-1 hover:text-blue-900"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {(selectedSizes.length > 0 || selectedPriceRanges.length > 0 ||
+                                        selectedBrands.length > 0 || selectedTags.length > 0 ||
+                                        selectedCollections.length > 0 || categoryParam) && (
                                         <button
                                             onClick={handleClearAllFilters}
                                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full border border-gray-300"
@@ -476,13 +659,13 @@ function ProductsPageChild() {
                             )}
 
                         {/* Product Grid/List */}
-                        {products.length > 0 ? (
+                        {paginatedProducts.length > 0 ? (
                             <>
                                 <div className={viewMode === "grid"
                                     ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
                                     : "space-y-4"
                                 }>
-                                    {products.map((product) => (
+                                    {paginatedProducts.map((product) => (
                                         <ProductCard
                                             key={product.id}
                                             id={product.id}

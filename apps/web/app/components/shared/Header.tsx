@@ -28,11 +28,16 @@ export default function Header() {
     useEffect(() => {
         if (pathname === '/products') {
             const urlSearch = searchParams.get('search') || '';
-            setSearchQuery(urlSearch);
+            if (urlSearch === "All") {
+                setSearchQuery("");
+            } else {
+                setSearchQuery(urlSearch);
+            }
         }
     }, [searchParams, pathname]);
 
     const categories = [
+        "All",
         "Print",
         "Book",
         "Photo",

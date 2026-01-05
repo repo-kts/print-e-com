@@ -91,9 +91,9 @@ export default function ProfileSidebar() {
                             </div>
                         </div>
                         {user?.createdAt && (
-                            <div className="border-t border-gray-100 pt-3">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">Member Since</span>
+                        <div className="border-t border-gray-100 pt-3">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">Member Since</span>
                                     <span className="font-hkgb text-gray-900">
                                         {formatMemberSince(user.createdAt)}
                                     </span>

@@ -64,7 +64,7 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
             const categoryRecord = await prisma.category.findFirst({
                 where: {
                     OR: [
-                        { slug: category.toLowerCase() },
+                        { slug: category.toLowerCase() || category },
                         { name: { contains: category, mode: "insensitive" } },
                     ],
                 },
@@ -144,6 +144,9 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
                         where: { available: true },
                     },
                     images: {
+                        orderBy: { displayOrder: "asc" },
+                    },
+                    specifications: {
                         orderBy: { displayOrder: "asc" },
                     },
                 },

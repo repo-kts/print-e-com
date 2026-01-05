@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ShippingOption {
     id: string;
@@ -18,6 +18,13 @@ interface ShippingMethodProps {
 
 export default function ShippingMethod({ options, selectedId, onSelect }: ShippingMethodProps) {
     const [selected, setSelected] = useState(selectedId || options[0]?.id);
+
+    // Sync with external selectedId prop
+    useEffect(() => {
+        if (selectedId !== undefined) {
+            setSelected(selectedId);
+        }
+    }, [selectedId]);
 
     const handleSelect = (id: string) => {
         setSelected(id);
@@ -50,7 +57,7 @@ export default function ShippingMethod({ options, selectedId, onSelect }: Shippi
                                 <div>
                                     <p className="font-medium text-gray-900">
                                         <span className="font-hkgb font-bold">
-                                            ₹{option.price.toFixed(2)} {" "}
+                                            ₹{(option.price || 0).toFixed(2)} {" "}
                                         </span>
                                         {option.name}
                                     </p>

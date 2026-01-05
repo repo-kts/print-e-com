@@ -1,203 +1,342 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useAddresses } from "@/hooks/addresses/useAddresses";
+import { CreateAddressData } from "@/lib/api/addresses";
+import { MapPin, Plus } from "lucide-react";
 
 interface BillingAddressFormProps {
-    initialData?: {
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        streetAddress1?: string;
-        streetAddress2?: string;
-        state?: string;
-        city?: string;
-        zipCode?: string;
-        phone?: string;
-    };
+    selectedAddressId: string | null;
+    onAddressSelect: (addressId: string | null) => void;
     onDataChange?: (data: any) => void;
 }
 
-export default function BillingAddressForm({ initialData, onDataChange }: BillingAddressFormProps) {
-    const [formData, setFormData] = useState({
-        firstName: initialData?.firstName || "",
-        lastName: initialData?.lastName || "",
-        email: initialData?.email || "",
-        streetAddress1: initialData?.streetAddress1 || "",
-        streetAddress2: initialData?.streetAddress2 || "",
-        state: initialData?.state || "",
-        city: initialData?.city || "",
-        zipCode: initialData?.zipCode || "",
-        phone: initialData?.phone || "",
+export default function BillingAddressForm({
+    selectedAddressId,
+    onAddressSelect,
+    onDataChange,
+}: BillingAddressFormProps) {
+    const { addresses, loading, createAddress, refetch } = useAddresses();
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState<CreateAddressData>({
+        street: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "India",
+        isDefault: false,
     });
 
-    const [sameAsShipping, setSameAsShipping] = useState(true);
-    const [createAccount, setCreateAccount] = useState(false);
+    // Sort addresses: default first, then selected, then others
 
-    const handleChange = (field: string, value: string) => {
-        const newData = { ...formData, [field]: value };
-        setFormData(newData);
-        onDataChange?.(newData);
+    // Find default address
+    const defaultAddress = useMemo(() => {
+        return addresses.find((addr) => addr.isDefault) || addresses[0] || null;
+    }, [addresses]);
+
+    // Auto-select default address if available and none selected
+    useEffect(() => {
+        if (defaultAddress && !selectedAddressId && !showCreateForm && addresses.length > 0) {
+            onAddressSelect(defaultAddress.id);
+        }
+    }, [defaultAddress, selectedAddressId, showCreateForm, addresses.length, onAddressSelect]);
+
+    // Show create form if no addresses exist
+    useEffect(() => {
+        if (addresses.length === 0 && !showCreateForm) {
+            setShowCreateForm(true);
+        }
+    }, [addresses.length, showCreateForm]);
+
+    const handleChange = (field: keyof CreateAddressData, value: string | boolean) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
     };
+
+    // Track previous address count to detect new address
+    const [previousAddressCount, setPreviousAddressCount] = useState(addresses.length);
+    const [pendingIsDefault, setPendingIsDefault] = useState(false);
+
+    // Auto-select newly created address
+    useEffect(() => {
+        if (addresses.length > previousAddressCount) {
+            // A new address was added
+            const newAddress = pendingIsDefault
+                ? addresses.find(addr => addr.isDefault)
+                : addresses[addresses.length - 1];
+
+            if (newAddress) {
+                onAddressSelect(newAddress.id);
+            }
+            setPreviousAddressCount(addresses.length);
+            setPendingIsDefault(false);
+        }
+    }, [addresses.length, previousAddressCount, pendingIsDefault, addresses, onAddressSelect]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Validate required fields
+        if (!formData.street || !formData.city || !formData.state || !formData.zipCode) {
+            alert("Please fill in all required fields");
+            return;
+        }
+
+        setIsSubmitting(true);
+        const wasDefault = formData.isDefault || false;
+        setPendingIsDefault(wasDefault);
+        setPreviousAddressCount(addresses.length);
+
+        try {
+            const success = await createAddress(formData);
+            if (success) {
+                // Refetch addresses to get the newly created one with its ID
+                await refetch();
+
+                // Reset form
+                setFormData({
+                    street: "",
+                    city: "",
+                    state: "",
+                    zipCode: "",
+                    country: "India",
+                    isDefault: false,
+                });
+                setShowCreateForm(false);
+
+                // The useEffect above will handle selecting the new address
+            } else {
+                alert("Failed to create address. Please try again.");
+                setPendingIsDefault(false);
+            }
+        } catch (err) {
+            alert("An error occurred. Please try again.");
+            setPendingIsDefault(false);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+
+    if (loading) {
+        return (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 mb-6">
+                <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 mb-6">
             <h2 className="text-xl font-hkgb font-bold text-gray-900 mb-6">Billing Address</h2>
 
-            <div className="space-y-4">
-                {/* First Name & Last Name */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            First Name
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.firstName}
-                            onChange={(e) => handleChange("firstName", e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Last Name
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.lastName}
-                            onChange={(e) => handleChange("lastName", e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address
+            {/* Address Selection - Always show if addresses exist */}
+            {addresses.length > 0 && (
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Select Address
                     </label>
-                    <div className="relative">
-                        <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => handleChange("email", e.target.value)}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        {formData.email && (
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600"
+                    <div className="space-y-2">
+                        {addresses.map((address) => (
+                            <label
+                                key={address.id}
+                                className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                                    selectedAddressId === address.id
+                                        ? "border-blue-500 bg-blue-50"
+                                        : "border-gray-200 hover:border-gray-300"
+                                }`}
                             >
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            </svg>
-                        )}
+                                <input
+                                    type="radio"
+                                    name="address"
+                                    value={address.id}
+                                    checked={selectedAddressId === address.id}
+                                    onChange={() => {
+                                        onAddressSelect(address.id);
+                                        setShowCreateForm(false);
+                                    }}
+                                    className="mt-1 w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <MapPin size={16} className="text-gray-500" />
+                                        <span className="font-medium text-gray-900">
+                                            {address.street}
+                                        </span>
+                                        {address.isDefault && (
+                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                                Default
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        {address.city}, {address.state} {address.zipCode}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">{address.country}</p>
+                                </div>
+                            </label>
+                        ))}
                     </div>
                 </div>
+            )}
 
-                {/* Street Address */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Street Address
-                    </label>
-                    <input
-                        type="text"
-                        value={formData.streetAddress1}
-                        onChange={(e) => handleChange("streetAddress1", e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
-                        placeholder="Street address line 1"
-                    />
-                    <input
-                        type="text"
-                        value={formData.streetAddress2}
-                        onChange={(e) => handleChange("streetAddress2", e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Street address line 2 (optional)"
-                    />
-                </div>
+            {/* Create Address Option - Always show */}
+            <div className="mb-6">
+                {!showCreateForm ? (
+                    <button
+                        type="button"
+                        onClick={() => setShowCreateForm(true)}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                        <Plus size={16} />
+                        {addresses.length > 0 ? "Add New Address" : "Create Address"}
+                    </button>
+                ) : (
+                    <div className="border-t border-gray-200 pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">
+                                {addresses.length > 0 ? "Add New Address" : "Create Address"}
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowCreateForm(false);
+                                    setFormData({
+                                        street: "",
+                                        city: "",
+                                        state: "",
+                                        zipCode: "",
+                                        country: "India",
+                                        isDefault: false,
+                                    });
+                                }}
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
-                {/* State, City, Zip */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Create Address Form - Show when "Add New Address" is clicked */}
+            {showCreateForm && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+
+                    {/* Street Address */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            State/Province
+                            Street Address <span className="text-red-500">*</span>
                         </label>
-                        <select
-                            value={formData.state}
-                            onChange={(e) => handleChange("state", e.target.value)}
+                        <input
+                            type="text"
+                            value={formData.street}
+                            onChange={(e) => handleChange("street", e.target.value)}
+                            required
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Street address"
+                        />
+                    </div>
+
+                    {/* City, State, Zip */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                City <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.city}
+                                onChange={(e) => handleChange("city", e.target.value)}
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                State/Province <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.state}
+                                onChange={(e) => handleChange("state", e.target.value)}
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Zip/Postal Code <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.zipCode}
+                                onChange={(e) => handleChange("zipCode", e.target.value)}
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Country */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Country <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.country}
+                            onChange={(e) => handleChange("country", e.target.value)}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </div>
+
+                    {/* Set as Default Checkbox */}
+                    <div className="pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.isDefault}
+                                onChange={(e) => handleChange("isDefault", e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                                Set as default address
+                            </span>
+                        </label>
+                    </div>
+
+                    {/* Form Actions */}
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
-                            <option value="">Select State</option>
-                            <option value="California">California</option>
-                            <option value="New York">New York</option>
-                            <option value="Texas">Texas</option>
-                            <option value="Florida">Florida</option>
-                        </select>
+                            {isSubmitting ? "Creating..." : "Create Address"}
+                        </button>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                        <input
-                            type="text"
-                            value={formData.city}
-                            onChange={(e) => handleChange("city", e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Zip/Postal Code
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.zipCode}
-                            onChange={(e) => handleChange("zipCode", e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                </div>
+                </form>
+            )}
 
-                {/* Phone */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => handleChange("phone", e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="+1 234 567 890"
-                    />
-                </div>
-
-                {/* Checkboxes */}
-                <div className="space-y-3 pt-2">
+            {/* Checkboxes - Only show if address is selected */}
+            {selectedAddressId && addresses.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-gray-200 mt-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                         <input
                             type="checkbox"
-                            checked={sameAsShipping}
-                            onChange={(e) => setSameAsShipping(e.target.checked)}
+                            defaultChecked={true}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
                         <span className="text-sm text-gray-700">
                             My billing and shipping address are the same
                         </span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={createAccount}
-                            onChange={(e) => setCreateAccount(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">Create an account for later use</span>
-                    </label>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

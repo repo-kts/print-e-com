@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import {
     Package,
     Truck,
@@ -13,9 +13,12 @@ import {
     Check,
     Printer,
 } from "lucide-react";
+import { getOrder, type Order, type OrderStatusHistory } from "@/lib/api/orders";
+import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
 
 interface OrderItem {
     id: string;
+    productId: string;
     name: string;
     quantity: number;
     price: number;
@@ -23,9 +26,10 @@ interface OrderItem {
     color?: string;
     image?: string;
     customDesignUrl?: string;
+    variant?: string;
 }
 
-interface OrderStatusHistory {
+interface OrderStatusHistoryDisplay {
     status: string;
     date: string;
     description: string;
@@ -35,7 +39,7 @@ interface OrderDetails {
     id: string;
     orderNumber: string;
     date: string;
-    status: "Delivered" | "Shipped" | "Processing" | "Cancelled";
+    status: "Delivered" | "Shipped" | "Processing" | "Cancelled" | "Pending Review" | "Accepted" | "Rejected";
     total: number;
     subtotal: number;
     shipping: number;
@@ -55,151 +59,112 @@ interface OrderDetails {
     paymentStatus: string;
     trackingNumber?: string;
     estimatedDelivery?: string;
-    statusHistory: OrderStatusHistory[];
+    statusHistory: OrderStatusHistoryDisplay[];
 }
 
-// Sample order data
-const getOrderDetails = (id: string): OrderDetails | null => {
-    const orders: { [key: string]: OrderDetails } = {
-        "1": {
-            id: "1",
-            orderNumber: "ORD-1001",
-            date: "Jan 20, 2024",
-            status: "Delivered",
-            total: 1299.99,
-            subtotal: 1199.98,
-            shipping: 50.0,
-            tax: 50.01,
-            discount: 0,
-            items: [
-                {
-                    id: "1",
-                    name: "Custom Printed T-Shirt",
-                    quantity: 2,
-                    price: 599.99,
-                    size: "M",
-                    color: "Blue",
-                },
-                {
-                    id: "2",
-                    name: "Logo Stamped Cap",
-                    quantity: 1,
-                    price: 299.99,
-                    size: "M",
-                    color: "Black",
-                },
-            ],
-            shippingAddress: {
-                name: "John Doe",
-                phone: "+91 9876543210",
-                street: "123 Main Street, Apartment 4B",
-                city: "Mumbai",
-                state: "Maharashtra",
-                zipCode: "400001",
-                country: "India",
-            },
-            paymentMethod: "Credit Card",
-            paymentStatus: "Paid",
-            trackingNumber: "TRACK123456789",
-            estimatedDelivery: "Jan 25, 2024",
-            statusHistory: [
-                {
-                    status: "Order Placed",
-                    date: "Jan 20, 2024, 10:30 AM",
-                    description: "Your order has been placed successfully",
-                },
-                {
-                    status: "Confirmed",
-                    date: "Jan 20, 2024, 11:00 AM",
-                    description: "Order confirmed and payment received",
-                },
-                {
-                    status: "Processing",
-                    date: "Jan 21, 2024, 09:00 AM",
-                    description: "Your order is being prepared",
-                },
-                {
-                    status: "Shipped",
-                    date: "Jan 22, 2024, 02:30 PM",
-                    description: "Your order has been shipped",
-                },
-                {
-                    status: "Delivered",
-                    date: "Jan 25, 2024, 04:15 PM",
-                    description: "Your order has been delivered",
-                },
-            ],
-        },
-        "2": {
-            id: "2",
-            orderNumber: "ORD-1002",
-            date: "Jan 18, 2024",
-            status: "Shipped",
-            total: 2499.99,
-            subtotal: 2499.99,
-            shipping: 0,
-            tax: 0,
-            discount: 0,
-            items: [
-                {
-                    id: "3",
-                    name: "Premium Business Cards",
-                    quantity: 500,
-                    price: 1499.99,
-                },
-                {
-                    id: "4",
-                    name: "Custom Letterhead",
-                    quantity: 100,
-                    price: 999.99,
-                },
-            ],
-            shippingAddress: {
-                name: "John Doe",
-                phone: "+91 9876543210",
-                street: "456 Business Park, Floor 5",
-                city: "Mumbai",
-                state: "Maharashtra",
-                zipCode: "400070",
-                country: "India",
-            },
-            paymentMethod: "UPI",
-            paymentStatus: "Paid",
-            trackingNumber: "TRACK987654321",
-            estimatedDelivery: "Jan 28, 2024",
-            statusHistory: [
-                {
-                    status: "Order Placed",
-                    date: "Jan 18, 2024, 03:45 PM",
-                    description: "Your order has been placed successfully",
-                },
-                {
-                    status: "Confirmed",
-                    date: "Jan 18, 2024, 04:00 PM",
-                    description: "Order confirmed and payment received",
-                },
-                {
-                    status: "Processing",
-                    date: "Jan 19, 2024, 10:00 AM",
-                    description: "Your order is being prepared",
-                },
-                {
-                    status: "Shipped",
-                    date: "Jan 20, 2024, 01:30 PM",
-                    description: "Your order has been shipped",
-                },
-            ],
-        },
+// Transform backend order to display format
+function transformOrder(order: Order): OrderDetails {
+    const statusMap: Record<string, "Delivered" | "Shipped" | "Processing" | "Cancelled" | "Pending Review" | "Accepted" | "Rejected"> = {
+        "PENDING_REVIEW": "Pending Review",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "PROCESSING": "Processing",
+        "SHIPPED": "Shipped",
+        "DELIVERED": "Delivered",
+        "CANCELLED": "Cancelled",
     };
 
-    return orders[id] || null;
-};
+    const paymentStatusMap: Record<string, string> = {
+        "PENDING": "Pending",
+        "SUCCESS": "Paid",
+        "FAILED": "Failed",
+        "REFUNDED": "Refunded",
+    };
 
-const statusColors = {
-    Delivered: "bg-green-100 text-green-700 border border-green-200",
-    Shipped: "bg-blue-100 text-blue-700 border border-blue-200",
-    Processing: "bg-yellow-100 text-yellow-700 border border-yellow-200",
-    Cancelled: "bg-red-100 text-red-700 border border-red-200",
+    const paymentMethodMap: Record<string, string> = {
+        "ONLINE": "Online Payment",
+        "OFFLINE": "Cash on Delivery",
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
+
+    const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+        });
+    };
+
+    // Transform status history
+    const statusHistory: OrderStatusHistoryDisplay[] = (order.statusHistory || []).map((history: OrderStatusHistory) => ({
+        status: statusMap[history.status] || history.status,
+        date: formatDateTime(history.createdAt),
+        description: history.comment || `Status updated to ${statusMap[history.status] || history.status}`,
+    }));
+
+    // Add initial order placed status if not present
+    if (statusHistory.length === 0 || statusHistory[0]?.status !== "Order Placed") {
+        statusHistory.unshift({
+            status: "Order Placed",
+            date: formatDateTime(order.createdAt),
+            description: "Your order has been placed successfully",
+        });
+    }
+
+    return {
+        id: order.id,
+        orderNumber: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+        date: formatDate(order.createdAt),
+        status: statusMap[order.status] || "Processing",
+        total: Number(order.total),
+        subtotal: Number(order.subtotal || 0),
+        shipping: Number(order.shippingCharges || 0),
+        tax: 0, // Tax is typically included in subtotal or calculated separately
+        discount: Number(order.discountAmount || 0),
+        items: order.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            name: item.product?.name || "Unknown Product",
+            quantity: item.quantity,
+            price: Number(item.price),
+            image: item.product?.images?.[0]?.url,
+            customDesignUrl: item.customDesignUrl,
+            variant: item.variant?.name,
+        })),
+        shippingAddress: {
+            name: "", // Address doesn't have name in current schema
+            phone: "", // Address doesn't have phone in current schema
+            street: order.address?.street || "",
+            city: order.address?.city || "",
+            state: order.address?.state || "",
+            zipCode: order.address?.zipCode || "",
+            country: order.address?.country || "",
+        },
+        paymentMethod: paymentMethodMap[order.paymentMethod] || order.paymentMethod,
+        paymentStatus: paymentStatusMap[order.paymentStatus] || order.paymentStatus,
+        statusHistory,
+    };
+}
+
+const statusColors: Record<string, string> = {
+    "Delivered": "bg-green-100 text-green-700 border border-green-200",
+    "Shipped": "bg-blue-100 text-blue-700 border border-blue-200",
+    "Processing": "bg-yellow-100 text-yellow-700 border border-yellow-200",
+    "Cancelled": "bg-red-100 text-red-700 border border-red-200",
+    "Pending Review": "bg-gray-100 text-gray-700 border border-gray-200",
+    "Accepted": "bg-green-100 text-green-700 border border-green-200",
+    "Rejected": "bg-red-100 text-red-700 border border-red-200",
 };
 
 function OrderDetailsPageContent({
@@ -208,9 +173,42 @@ function OrderDetailsPageContent({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
-    const order = getOrderDetails(id);
+    const [order, setOrder] = useState<OrderDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    if (!order) {
+    useEffect(() => {
+        async function fetchOrder() {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await getOrder(id);
+
+                if (response.success && response.data) {
+                    setOrder(transformOrder(response.data));
+                } else {
+                    setError(response.error || "Failed to load order");
+                }
+            } catch (err) {
+                console.error("Error fetching order:", err);
+                setError(err instanceof Error ? err.message : "Failed to load order");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchOrder();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                <BarsSpinner />
+            </div>
+        );
+    }
+
+    if (error || !order) {
         return (
             <>
                 <div className="flex-1">
@@ -222,8 +220,7 @@ function OrderDetailsPageContent({
                             Order not found
                         </p>
                         <p className="text-gray-600 text-sm mb-6">
-                            The order you're looking for doesn't exist or has
-                            been removed
+                            {error || "The order you're looking for doesn't exist or has been removed"}
                         </p>
                         <Link
                             href="/orders"
@@ -286,8 +283,16 @@ function OrderDetailsPageContent({
                                         className="flex gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-100 rounded-xl hover:border-gray-200 transition-all duration-300"
                                     >
                                         {/* Product Image */}
-                                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                                            <Package className="text-gray-400 w-6 h-6 sm:w-8 sm:h-8" />
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                                            {item.image ? (
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <Package className="text-gray-400 w-6 h-6 sm:w-8 sm:h-8" />
+                                            )}
                                         </div>
 
                                         {/* Product Details */}
@@ -296,26 +301,26 @@ function OrderDetailsPageContent({
                                                 {item.name}
                                             </h3>
                                             <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-gray-600 mb-2">
-                                                {item.size && (
+                                                {item.variant && (
                                                     <span className="bg-gray-50 px-2 py-1 rounded">
-                                                        Size: {item.size}
-                                                    </span>
-                                                )}
-                                                {item.color && (
-                                                    <span className="bg-gray-50 px-2 py-1 rounded">
-                                                        Color: {item.color}
+                                                        Variant: {item.variant}
                                                     </span>
                                                 )}
                                                 <span className="bg-gray-50 px-2 py-1 rounded">
                                                     Qty: {item.quantity}
                                                 </span>
+                                                {item.customDesignUrl && (
+                                                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                                        Custom Design
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <p className="text-sm sm:text-base font-hkgb text-gray-900">
                                                     ₹{item.price.toFixed(2)}
                                                 </p>
                                                 <Link
-                                                    href={`/products/${item.id}`}
+                                                    href={`/products/${item.productId || item.id}`}
                                                     className="text-xs sm:text-sm text-[#008ECC] hover:text-[#0077B3] font-medium"
                                                 >
                                                     View Product

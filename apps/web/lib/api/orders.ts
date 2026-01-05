@@ -37,6 +37,14 @@ export interface OrderItem {
   };
 }
 
+export interface OrderStatusHistory {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  comment?: string;
+  createdAt: string;
+}
+
 export interface Order {
   id: string;
   userId: string;
@@ -61,6 +69,7 @@ export interface Order {
     zipCode: string;
     country: string;
   };
+  statusHistory?: OrderStatusHistory[];
 }
 
 export interface CreateOrderData {

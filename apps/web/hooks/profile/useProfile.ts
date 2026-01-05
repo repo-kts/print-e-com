@@ -111,7 +111,7 @@ export const useProfile = () => {
           id: order.id,
           orderId: `ORD-${order.id.slice(0, 8).toUpperCase()}`,
           date: formattedDate,
-          amount: `₹${order.total.toFixed(2)}`,
+          amount: `₹${Number(order.total).toFixed(2)}`,
           status: statusMap[order.status] || order.status,
         };
       });

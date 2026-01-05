@@ -69,9 +69,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             // In a real implementation, you'd upload to server here
             const objectUrl = URL.createObjectURL(file);
             setUploadedFileUrl(objectUrl);
-        } else {
+                } else {
             setUploadedFileUrl(null);
-        }
+                }
     };
 
     // Handle add to cart

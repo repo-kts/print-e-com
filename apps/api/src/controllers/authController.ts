@@ -48,10 +48,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
                 return sendSuccess(
                     res,
                     {
-                        user: {
-                            id: user.id,
-                            email: user.email,
-                            name: user.name,
+                    user: {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
                             phone: user.phone,
                             isAdmin: user.isAdmin,
                         },
@@ -111,10 +111,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         return sendSuccess(
             res,
             {
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
                     phone: user.phone,
                     isAdmin: user.isAdmin,
                 },
@@ -194,10 +194,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         return sendSuccess(
             res,
             {
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
                     phone: user.phone,
                     isAdmin: user.isAdmin,
                 },
