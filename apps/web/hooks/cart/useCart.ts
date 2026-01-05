@@ -22,8 +22,6 @@ export interface UseCartReturn {
   error: string | null;
   updatingItemId: string | null;
   removingItemId: string | null;
-  subtotal: number;
-  deliveryFee: number;
   total: number;
   itemCount: number;
   refetch: () => Promise<void>;
@@ -188,7 +186,7 @@ export function useCart(): UseCartReturn {
     return items.reduce((sum, item) => sum + item.quantity, 0);
   }, [items]);
 
-  const subtotal = useMemo(() => {
+  const total = useMemo(() => {
     return items.reduce((sum, item) => {
       const price = item.product?.sellingPrice || item.product?.basePrice || 0;
       const variantModifier = item.variant?.priceModifier || 0;
@@ -197,14 +195,6 @@ export function useCart(): UseCartReturn {
     }, 0);
   }, [items]);
 
-  const deliveryFee = useMemo(() => {
-    // Fixed delivery fee for now, can be calculated based on subtotal or location
-    return 15;
-  }, []);
-
-  const total = useMemo(() => {
-    return subtotal + deliveryFee;
-  }, [subtotal, deliveryFee]);
 
   return {
     cart,
@@ -213,8 +203,6 @@ export function useCart(): UseCartReturn {
     error,
     updatingItemId,
     removingItemId,
-    subtotal,
-    deliveryFee,
     total,
     itemCount,
     refetch: () => fetchCart(true),

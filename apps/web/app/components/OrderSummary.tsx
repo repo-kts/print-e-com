@@ -4,18 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 
 interface OrderSummaryProps {
-    subtotal: number;
     discount?: number;
     discountPercentage?: number;
-    deliveryFee: number;
     total: number;
 }
 
 export default function OrderSummary({
-    subtotal,
     discount = 0,
     discountPercentage,
-    deliveryFee,
     total,
 }: OrderSummaryProps) {
     const [promoCode, setPromoCode] = useState("");
@@ -31,10 +27,6 @@ export default function OrderSummary({
 
             {/* Price Breakdown */}
             <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-gray-600">
-                    <span>Subtotal</span>
-                    <span className="font-hkgb font-medium">₹{subtotal.toFixed(2)}</span>
-                </div>
 
                 {discount > 0 && (
                     <div className="flex justify-between text-red-600">
@@ -42,11 +34,6 @@ export default function OrderSummary({
                         <span className="font-hkgb font-medium">-₹{discount.toFixed(2)}</span>
                     </div>
                 )}
-
-                <div className="flex justify-between text-gray-600">
-                    <span>Delivery Fee</span>
-                    <span className="font-hkgb font-medium">₹{deliveryFee.toFixed(2)}</span>
-                </div>
 
                 <hr className="border-gray-200 my-4" />
 
