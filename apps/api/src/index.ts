@@ -136,9 +136,9 @@ export default app;
 
 // Only start server in development or when not running as serverless
 // Vercel sets VERCEL=1 environment variable
-if (!process.env.VERCEL) {
-    const PORT = process.env.PORT || 3002;
-    app.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
-}
+// if (!process.env.VERCEL) {
+//     const PORT = process.env.PORT || 3002;
+//     app.listen(PORT, () => {
+//         console.log(`🚀 Server running on http://localhost:${PORT}`);
+//     });
+// }
