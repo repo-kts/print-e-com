@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "buildCommand": "npm run db:generate",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ]
+}
+
