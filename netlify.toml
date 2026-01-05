@@ -7,3 +7,22 @@
   node_bundler = "esbuild"
   included_files = ["apps/api/src/**", "apps/api/generated/**", "apps/api/prisma/**", "apps/api/package.json"]
 
+# Redirect all /api/* requests to the Netlify function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Redirect root to health check
+[[redirects]]
+  from = "/"
+  to = "/.netlify/functions/api/"
+  status = 200
+
+# Redirect /health to function
+[[redirects]]
+  from = "/health"
+  to = "/.netlify/functions/api/health"
+  status = 200
+
