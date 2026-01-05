@@ -223,7 +223,7 @@ function OrderDetailsPageContent({
                             {error || "The order you're looking for doesn't exist or has been removed"}
                         </p>
                         <Link
-                            href="/account/orders"
+                            href="/orders"
                             className="inline-block px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-[#0077B3] transition-colors font-hkgb text-sm"
                         >
                             Back to Orders
@@ -241,7 +241,7 @@ function OrderDetailsPageContent({
                 {/* Header */}
                 <div className="mb-6">
                     <Link
-                        href="/account/orders"
+                        href="/orders"
                         className="inline-flex items-center gap-2 text-[#008ECC] hover:text-[#0077B3] mb-4 text-sm font-medium"
                     >
                         <ArrowLeft className="w-4 h-4" />

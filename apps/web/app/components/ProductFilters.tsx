@@ -1,61 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getCategories, getProducts, type Category } from "@/lib/api/products";
 
 interface ProductFiltersProps {
   selectedSizes: string[];
-  selectedColors: string[];
+  selectedColors: string[]; // Keep for backward compatibility but not used
   selectedPriceRanges: string[];
   selectedBrands: string[];
   selectedCollections: string[];
   selectedTags: string[];
   onSizeChange: (sizes: string[]) => void;
-  onColorChange: (colors: string[]) => void;
+  onColorChange: (colors: string[]) => void; // Keep for backward compatibility but not used
   onPriceRangeChange: (ranges: string[]) => void;
   onBrandChange: (brands: string[]) => void;
   onCollectionChange: (collections: string[]) => void;
   onTagChange: (tags: string[]) => void;
 }
 
-const sizes = ["S", "M", "L", "XL"];
-const colors = [
-  { name: "Red", value: "#EF4444" },
-  { name: "Orange", value: "#F97316" },
-  { name: "Yellow", value: "#EAB308" },
-  { name: "Light Green", value: "#84CC16" },
-  { name: "Dark Green", value: "#22C55E" },
-  { name: "Light Blue", value: "#3B82F6" },
-  { name: "Dark Blue", value: "#1E40AF" },
-  { name: "Purple", value: "#A855F7" },
-  { name: "Pink", value: "#EC4899" },
-  { name: "Coral", value: "#F87171" },
-];
+const sizes = ["A4", "A5", "Letter", "Legal", "A3", "A2", "A1", "Custom"];
 const priceRanges = [
-  "$0-$50",
-  "$50-$100",
-  "$100-$150",
-  "$150-$200",
-  "$300-$400",
+  "₹0-₹10",
+  "₹10-₹20",
+  "₹20-₹50",
+  "₹50-₹100",
+  "₹100-₹200",
+  "₹200-₹500",
 ];
-const brands = ["Minimog", "Retrolie Brook", "Learts", "Vagabond", "Abby"];
 const collections = [
   "All products",
   "Best sellers",
   "New arrivals",
-  "Accessories",
-];
-const tags = [
-  "Fashion",
-  "Hats",
-  "Sandal",
-  "Belt",
-  "Bags",
-  "Snacker",
-  "Denim",
-  "Minimog",
-  "Vagabond",
-  "Sunglasses",
-  "Beachwear",
+  "Featured",
 ];
 
 export default function ProductFilters({
@@ -74,6 +50,56 @@ export default function ProductFilters({
 }: ProductFiltersProps) {
   const [isBrandsOpen, setIsBrandsOpen] = useState(true);
   const [isCollectionsOpen, setIsCollectionsOpen] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingBrands, setLoadingBrands] = useState(true);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategories();
+        if (response.success && response.data) {
+          setCategories(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch brands from products API
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        setLoadingBrands(true);
+        // Fetch a large number of products to get all brands
+        const response = await getProducts({ limit: 1000 });
+        if (response.success && response.data) {
+          // Extract unique brands from products
+          const uniqueBrands = new Set<string>();
+          response.data.products.forEach((product) => {
+            if (product.brand?.name) {
+              uniqueBrands.add(product.brand.name);
+            }
+          });
+          setBrands(Array.from(uniqueBrands).sort());
+        }
+      } catch (err) {
+        console.error('Failed to fetch brands:', err);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+
+    fetchBrands();
+  }, []);
 
   const toggleSize = (size: string) => {
     if (selectedSizes.includes(size)) {
@@ -147,26 +173,6 @@ export default function ProductFilters({
         </div>
       </div>
 
-      {/* Colors Filter */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Colors</h3>
-        <div className="grid grid-cols-6 gap-3">
-          {colors.map((color) => (
-            <button
-              key={color.name}
-              onClick={() => toggleColor(color.name)}
-              className={`w-10 h-10 rounded-full border-2 transition-all ${
-                selectedColors.includes(color.name)
-                  ? "border-gray-900 scale-110"
-                  : "border-gray-300 hover:border-gray-400"
-              }`}
-              style={{ backgroundColor: color.value }}
-              aria-label={color.name}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Prices Filter */}
       <div>
         <h3 className="text-sm font-semibold text-gray-900 mb-3">Prices</h3>
@@ -189,6 +195,35 @@ export default function ProductFilters({
           ))}
         </div>
       </div>
+
+      {/* Categories Filter */}
+      {categories.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Categories</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {loadingCategories ? (
+              <div className="text-sm text-gray-500">Loading categories...</div>
+            ) : (
+              categories.map((category) => (
+                <label
+                  key={category.id}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.includes(category.name)}
+                    onChange={() => toggleTag(category.name)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                    {category.name}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Brands Filter */}
       <div>
@@ -214,23 +249,29 @@ export default function ProductFilters({
           </svg>
         </button>
         {isBrandsOpen && (
-          <div className="space-y-2">
-            {brands.map((brand) => (
-              <label
-                key={brand}
-                className="flex items-center gap-2 cursor-pointer group"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.includes(brand)}
-                  onChange={() => toggleBrand(brand)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                  {brand}
-                </span>
-              </label>
-            ))}
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {loadingBrands ? (
+              <div className="text-sm text-gray-500">Loading brands...</div>
+            ) : brands.length > 0 ? (
+              brands.map((brand) => (
+                <label
+                  key={brand}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBrands.includes(brand)}
+                    onChange={() => toggleBrand(brand)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">
+                    {brand}
+                  </span>
+                </label>
+              ))
+            ) : (
+              <div className="text-sm text-gray-500">No brands available</div>
+            )}
           </div>
         )}
       </div>
@@ -280,25 +321,6 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Tags Filter */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Tags</h3>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                selectedTags.includes(tag)
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:border-blue-600"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
