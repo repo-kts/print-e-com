@@ -1,9 +1,0 @@
-[build]
-  command = "cd apps/api && bun run db:generate && bun run build"
-  functions = "netlify/functions"
-  publish = "apps/api/dist"
-
-[functions]
-  node_bundler = "esbuild"
-  included_files = ["src/**", "generated/**", "prisma/**", "package.json"]
-
