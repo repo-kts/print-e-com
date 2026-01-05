@@ -380,7 +380,7 @@ export default function Header() {
             {/* Category Navigation Bar - Responsive and scrollable */}
             <div
                 ref={categoryBarRef}
-                className={`bg-white border-t border-gray-100 transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                className={`bg-white border-t border-gray-100 transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
                     }`}
             >
                 <div className="w-full px-4 sm:px-6 lg:px-30 py-3 lg:py-4 border-b border-gray-100">
