@@ -7,6 +7,7 @@
     "dev": "bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "build:vercel": "npx prisma generate --schema=prisma/schema.prisma",
+    "postinstall": "npx prisma generate --schema=prisma/schema.prisma",
     "start": "bun run dist/index.js",
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
