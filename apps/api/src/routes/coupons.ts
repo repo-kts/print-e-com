@@ -3,8 +3,8 @@ import {
     validateCoupon,
     getAvailableCoupons,
     getMyCoupons,
-} from "../controllers/couponController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/couponController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

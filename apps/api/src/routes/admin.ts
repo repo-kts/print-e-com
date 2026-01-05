@@ -5,13 +5,13 @@ import {
     deleteProduct,
     addVariant,
     createCategoties,
-} from "../controllers/productController";
+} from "../controllers/productController.js";
 import {
     getAdminOrders,
     getAdminOrder,
     updateOrderStatus,
-} from "../controllers/orderController";
-import { adminAuth } from "../middleware/auth";
+} from "../controllers/orderController.js";
+import { adminAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

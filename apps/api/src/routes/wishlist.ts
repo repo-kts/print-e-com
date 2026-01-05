@@ -4,8 +4,8 @@ import {
     addToWishlist,
     removeFromWishlist,
     checkWishlist,
-} from "../controllers/wishlistController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/wishlistController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

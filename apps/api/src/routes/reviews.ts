@@ -5,8 +5,8 @@ import {
     updateReview,
     deleteReview,
     voteReviewHelpful,
-} from "../controllers/reviewController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/reviewController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

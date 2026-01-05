@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../services/prisma";
-import { sendError, sendSuccess } from "../utils/response";
-import { UnauthorizedError, NotFoundError, ValidationError } from "../utils/errors";
+import { prisma } from "../services/prisma.js";
+import { sendError, sendSuccess } from "../utils/response.js";
+import { UnauthorizedError, NotFoundError, ValidationError } from "../utils/errors.js";
 
 export const createAddress = async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -5,8 +5,8 @@ import {
     updateCartItem,
     removeFromCart,
     clearCart,
-} from "../controllers/cartController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/cartController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

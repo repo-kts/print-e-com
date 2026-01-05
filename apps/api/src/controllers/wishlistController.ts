@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../services/prisma"; 
-import { sendSuccess } from "../utils/response";
-import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors";
+import { prisma } from "../services/prisma.js"; 
+import { sendSuccess } from "../utils/response.js";
+import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors.js";
 
 // Get user's wishlist
 export const getWishlist = async (req: Request, res: Response, next: NextFunction) => {

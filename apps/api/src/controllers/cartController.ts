@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../services/prisma";
-import { sendSuccess, sendError } from "../utils/response";
-import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors";
+import { prisma } from "../services/prisma.js";
+import { sendSuccess, sendError } from "../utils/response.js";
+import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors.js";
 
 // Get user's cart
 export const getCart = async (req: Request, res: Response, next: NextFunction) => {

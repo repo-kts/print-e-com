@@ -4,8 +4,8 @@ import {
     createRazorpayOrderFromCart,
     verifyPayment,
     razorpayWebhook,
-} from "../controllers/paymentController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/paymentController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

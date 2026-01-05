@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { supabase, supabaseAdmin } from "../services/supabase";
-import { prisma } from "../services/prisma";
-import { sendSuccess, sendError } from "../utils/response";
-import { ValidationError, UnauthorizedError, NotFoundError } from "../utils/errors";
+import { supabase, supabaseAdmin } from "../services/supabase.js";
+import { prisma } from "../services/prisma.js";
+import { sendSuccess, sendError } from "../utils/response.js";
+import { ValidationError, UnauthorizedError, NotFoundError } from "../utils/errors.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 

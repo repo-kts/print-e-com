@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { supabase } from "../services/supabase";
-import { UnauthorizedError, ForbiddenError } from "../utils/errors";
-import { sendError } from "../utils/response";
-import { prisma } from "../services/prisma";
+import { supabase } from "../services/supabase.js";
+import { UnauthorizedError, ForbiddenError } from "../utils/errors.js";
+import { sendError } from "../utils/response.js";
+import { prisma } from "../services/prisma.js";
 
 // Extend Express Request to include user info
 declare global {

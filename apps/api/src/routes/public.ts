@@ -4,7 +4,7 @@ import {
     getProducts,
     getProduct,
     searchProducts,
-} from "../controllers/productController";
+} from "../controllers/productController.js";
 
 const router: IRouter = Router();
 

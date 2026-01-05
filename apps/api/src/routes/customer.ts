@@ -4,9 +4,9 @@ import {
     getMyOrders,
     getOrder,
     trackOrder,
-} from "../controllers/orderController";
-import { customerAuth } from "../middleware/auth";
-import { createAddress, updateAddress, deleteAddress } from "../controllers/addressController";
+} from "../controllers/orderController.js";
+import { customerAuth } from "../middleware/auth.js";
+import { createAddress, updateAddress, deleteAddress } from "../controllers/addressController.js";
 
 const router: IRouter = Router();
 

@@ -7,8 +7,8 @@ import {
     updatePassword,
     updateNotificationPreferences,
     deleteAccount,
-} from "../controllers/authController";
-import { customerAuth } from "../middleware/auth";
+} from "../controllers/authController.js";
+import { customerAuth } from "../middleware/auth.js";
 
 const router: IRouter = Router();
 

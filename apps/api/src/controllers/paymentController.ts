@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
-import { razorpay } from "../services/razorpay";
-import { prisma } from "../services/prisma";
-import { sendSuccess, sendError } from "../utils/response";
-import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors";
+import { razorpay } from "../services/razorpay.js";
+import { prisma } from "../services/prisma.js";
+import { sendSuccess, sendError } from "../utils/response.js";
+import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors.js";
 
 // Create Razorpay order from cart data (order created only after payment success)
 export const createRazorpayOrderFromCart = async (req: Request, res: Response, next: NextFunction) => {
