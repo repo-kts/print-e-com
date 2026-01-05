@@ -5,7 +5,77 @@ import { prisma } from "../services/prisma";
 import { sendSuccess, sendError } from "../utils/response";
 import { ValidationError, NotFoundError, UnauthorizedError } from "../utils/errors";
 
-// Create Razorpay order
+// Create Razorpay order from cart data (order created only after payment success)
+export const createRazorpayOrderFromCart = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        if (!req.user) {
+            throw new UnauthorizedError("User not authenticated");
+        }
+
+        const { items, addressId, amount, couponCode, shippingCharges } = req.body;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            throw new ValidationError("Order items are required");
+        }
+
+        if (!addressId) {
+            throw new ValidationError("Shipping address is required");
+        }
+
+        if (!amount || Number(amount) <= 0) {
+            throw new ValidationError("Valid amount is required");
+        }
+
+        // Verify address belongs to user
+        const address = await prisma.address.findFirst({
+            where: {
+                id: addressId,
+                userId: req.user.id,
+            },
+        });
+
+        if (!address) {
+            throw new NotFoundError("Address not found");
+        }
+
+        if (!razorpay) {
+            return sendError(res, "Razorpay not configured", 500);
+        }
+
+        // Create Razorpay order with cart data stored in notes
+        const amountInPaise = Math.round(Number(amount) * 100);
+        const receipt = `cart_${Date.now()}`.slice(0, 40); // Ensure receipt is <= 40 chars
+
+        const razorpayOrder = await razorpay.orders.create({
+            amount: amountInPaise,
+            currency: "INR",
+            receipt,
+            notes: {
+                userId: req.user.id,
+                addressId,
+                items: JSON.stringify(items),
+                couponCode: couponCode || "",
+                shippingCharges: String(shippingCharges || 0),
+                amount: String(amount),
+            },
+        });
+
+        const orderAmount = typeof razorpayOrder.amount === "number"
+            ? razorpayOrder.amount / 100
+            : Number(razorpayOrder.amount) / 100;
+
+        return sendSuccess(res, {
+            razorpayOrderId: razorpayOrder.id,
+            amount: orderAmount,
+            currency: razorpayOrder.currency,
+            key: process.env.RAZORPAY_KEY_ID,
+        }, "Razorpay order created successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Create Razorpay order (legacy - for existing orders)
 export const createRazorpayOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.user) {
@@ -88,7 +158,7 @@ export const createRazorpayOrder = async (req: Request, res: Response, next: Nex
     }
 };
 
-// Verify Razorpay payment
+// Verify Razorpay payment and create order if it doesn't exist
 export const verifyPayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.user) {
@@ -101,30 +171,7 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
             throw new ValidationError("Missing payment verification data");
         }
 
-        // Find order and payment
-        const order = await prisma.order.findFirst({
-            where: {
-                razorpayOrderId: razorpay_order_id,
-                userId: req.user.id,
-            },
-        });
-
-        if (!order) {
-            throw new NotFoundError("Order not found");
-        }
-
-        const payment = await prisma.payment.findFirst({
-            where: {
-                razorpayOrderId: razorpay_order_id,
-                userId: req.user.id,
-            },
-        });
-
-        if (!payment) {
-            throw new NotFoundError("Payment record not found");
-        }
-
-        // Verify signature
+        // Verify signature FIRST before any DB operations
         const secret = process.env.RAZORPAY_KEY_SECRET || "";
         const text = `${razorpay_order_id}|${razorpay_payment_id}`;
         const generatedSignature = crypto
@@ -133,29 +180,234 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
             .digest("hex");
 
         if (generatedSignature !== razorpay_signature) {
-            // Update payment as failed
-            await prisma.payment.update({
-                where: { id: payment.id },
-                data: { status: "FAILED" },
-            });
-
             return sendError(res, "Payment verification failed", 400);
         }
 
-        // Update payment and order
-        await Promise.all([
-            prisma.payment.update({
+        // Check if order already exists
+        let order = await prisma.order.findFirst({
+            where: {
+                razorpayOrderId: razorpay_order_id,
+                userId: req.user.id,
+            },
+        });
+
+        // If order doesn't exist, create it from Razorpay order notes
+        if (!order && razorpay) {
+            try {
+                // Fetch Razorpay order to get cart data from notes
+                const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+                const notes = razorpayOrder.notes || {};
+
+                // Validate notes contain required data
+                if (!notes.userId || String(notes.userId) !== req.user.id) {
+                    throw new ValidationError("Invalid order data");
+                }
+
+                const items = JSON.parse(String(notes.items || "[]"));
+                const addressId = String(notes.addressId || "");
+                const couponCode = String(notes.couponCode || "");
+                const shippingCharges = Number(notes.shippingCharges || 0);
+
+                if (!items || !Array.isArray(items) || items.length === 0 || !addressId) {
+                    throw new ValidationError("Invalid order data in Razorpay notes");
+                }
+
+                // Verify address belongs to user
+                const address = await prisma.address.findFirst({
+                    where: {
+                        id: addressId,
+                        userId: req.user.id,
+                    },
+                });
+
+                if (!address) {
+                    throw new NotFoundError("Address not found");
+                }
+
+                // Calculate order totals (same logic as createOrder)
+                let subtotal = 0;
+                const orderItems = [];
+
+                for (const item of items) {
+                    const { productId, variantId, quantity, customDesignUrl, customText } = item;
+
+                    if (!productId || !quantity || quantity < 1) {
+                        throw new ValidationError("Invalid order item");
+                    }
+
+                    const product = await prisma.product.findUnique({
+                        where: { id: productId },
+                        include: { variants: true },
+                    });
+
+                    if (!product || !product.isActive) {
+                        throw new NotFoundError(`Product ${productId} not found`);
+                    }
+
+                    let itemPrice = Number(product.sellingPrice || product.basePrice);
+
+                    if (variantId) {
+                        const variant = product.variants.find((v: { id: string }) => v.id === variantId);
+                        if (!variant || !variant.available) {
+                            throw new ValidationError(`Variant ${variantId} not available`);
+                        }
+                        itemPrice += Number(variant.priceModifier);
+                    }
+
+                    const itemTotal = itemPrice * quantity;
+                    subtotal += itemTotal;
+
+                    orderItems.push({
+                        productId,
+                        variantId: variantId || null,
+                        quantity,
+                        price: itemPrice,
+                        customDesignUrl: customDesignUrl || null,
+                        customText: customText || null,
+                    });
+                }
+
+                // Calculate discount from coupon if provided
+                let discountAmount = 0;
+                let couponId = null;
+
+                if (couponCode && couponCode.trim()) {
+                    const coupon = await prisma.coupon.findUnique({
+                        where: { code: String(couponCode).toUpperCase() },
+                    });
+
+                    if (coupon && coupon.isActive) {
+                        const now = new Date();
+                        if (now >= coupon.validFrom && now <= coupon.validUntil) {
+                            if (!coupon.minPurchaseAmount || subtotal >= Number(coupon.minPurchaseAmount)) {
+                                const usageCount = await prisma.couponUsage.count({
+                                    where: { couponId: coupon.id },
+                                });
+
+                                if (coupon.usageLimit === null || usageCount < coupon.usageLimit) {
+                                    const userUsageCount = await prisma.couponUsage.count({
+                                        where: {
+                                            couponId: coupon.id,
+                                            userId: req.user.id,
+                                        },
+                                    });
+
+                                    if (userUsageCount < coupon.usageLimitPerUser) {
+                                        if (coupon.discountType === "PERCENTAGE") {
+                                            discountAmount = (subtotal * Number(coupon.discountValue)) / 100;
+                                        } else {
+                                            discountAmount = Number(coupon.discountValue);
+                                        }
+
+                                        if (coupon.maxDiscountAmount && discountAmount > Number(coupon.maxDiscountAmount)) {
+                                            discountAmount = Number(coupon.maxDiscountAmount);
+                                        }
+
+                                        couponId = coupon.id;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Calculate final total
+                const total = subtotal - discountAmount + shippingCharges;
+
+                // Create order
+                order = await prisma.order.create({
+                    data: {
+                        userId: req.user.id,
+                        addressId,
+                        subtotal,
+                        discountAmount: discountAmount > 0 ? discountAmount : null,
+                        shippingCharges: shippingCharges > 0 ? shippingCharges : null,
+                        total,
+                        paymentMethod: "ONLINE",
+                        paymentStatus: "SUCCESS", // Payment already verified
+                        couponId,
+                        razorpayOrderId: razorpay_order_id,
+                        status: "PENDING_REVIEW",
+                        items: {
+                            create: orderItems,
+                        },
+                        statusHistory: {
+                            create: {
+                                status: "PENDING_REVIEW",
+                                comment: "Order created after successful payment",
+                            },
+                        },
+                    },
+                    include: {
+                        items: {
+                            include: {
+                                product: true,
+                                variant: true,
+                            },
+                        },
+                        address: true,
+                    },
+                });
+
+                // Record coupon usage if applied
+                if (couponId) {
+                    await prisma.couponUsage.create({
+                        data: {
+                            couponId,
+                            userId: req.user.id,
+                            orderId: order.id,
+                        },
+                    });
+                }
+            } catch (createError) {
+                console.error("Error creating order from Razorpay notes:", createError);
+                throw new ValidationError("Failed to create order from payment data");
+            }
+        }
+
+        if (!order) {
+            throw new NotFoundError("Order not found and could not be created");
+        }
+
+        // Find or create payment record
+        let payment = await prisma.payment.findFirst({
+            where: {
+                razorpayOrderId: razorpay_order_id,
+                userId: req.user.id,
+            },
+        });
+
+        if (!payment) {
+            // Create payment record
+            payment = await prisma.payment.create({
+                data: {
+                    orderId: order.id,
+                    userId: req.user.id,
+                    amount: order.total,
+                    razorpayOrderId: razorpay_order_id,
+                    razorpayPaymentId: razorpay_payment_id,
+                    method: "ONLINE",
+                    status: "SUCCESS",
+                },
+            });
+        } else {
+            // Update existing payment
+            payment = await prisma.payment.update({
                 where: { id: payment.id },
                 data: {
                     razorpayPaymentId: razorpay_payment_id,
                     status: "SUCCESS",
                 },
-            }),
-            prisma.order.update({
+            });
+        }
+
+        // Update order payment status if not already set
+        if (order.paymentStatus !== "SUCCESS") {
+            await prisma.order.update({
                 where: { id: order.id },
                 data: { paymentStatus: "SUCCESS" },
-            }),
-        ]);
+            });
+        }
 
         return sendSuccess(res, {
             verified: true,

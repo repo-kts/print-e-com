@@ -12,8 +12,7 @@ import DiscountCodeSection from "../components/DiscountCodeSection";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useCheckout } from "@/hooks/checkout/useCheckout";
 import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
-import { createOrder } from "@/lib/api/orders";
-import { createRazorpayOrder, verifyRazorpayPayment } from "@/lib/api/payments";
+import { createRazorpayOrderFromCart, verifyRazorpayPayment } from "@/lib/api/payments";
 
 function CheckoutPageContent() {
     const {
@@ -114,8 +113,8 @@ function CheckoutPageContent() {
         try {
             setIsPaying(true);
 
-            // 1) Create backend order with ONLINE payment
-            const createOrderResp = await createOrder({
+            // 1) Create Razorpay order directly from cart (order created in DB only after payment success)
+            const rpOrderResp = await createRazorpayOrderFromCart({
                 items: cartItems.map((item: any) => ({
                     productId: item.productId,
                     variantId: item.variantId,
@@ -124,20 +123,9 @@ function CheckoutPageContent() {
                     customText: item.customText,
                 })),
                 addressId: selectedAddressId,
-                paymentMethod: "ONLINE",
+                amount: calculatedTotal,
                 couponCode: appliedCoupon?.coupon?.code,
-            });
-
-            if (!createOrderResp.success || !createOrderResp.data) {
-                throw new Error(createOrderResp.error || "Failed to create order");
-            }
-
-            const order = createOrderResp.data;
-
-            // 2) Create Razorpay order on backend
-            const rpOrderResp = await createRazorpayOrder({
-                orderId: order.id,
-                amount: Number(order.total),
+                shippingCharges: selectedShippingFee,
             });
 
             if (!rpOrderResp.success || !rpOrderResp.data) {
@@ -146,7 +134,7 @@ function CheckoutPageContent() {
 
             const rpData = rpOrderResp.data;
 
-            // 3) Load Razorpay checkout
+            // 2) Load Razorpay checkout
             const scriptLoaded = await loadRazorpayScript();
             if (!scriptLoaded) {
                 throw new Error("Failed to load Razorpay checkout script");
@@ -157,10 +145,11 @@ function CheckoutPageContent() {
                 amount: Math.round(rpData.amount * 100), // in paise
                 currency: rpData.currency,
                 name: "Custom Printing Store",
-                description: `Order #${order.id}`,
+                description: `Order payment`,
                 order_id: rpData.razorpayOrderId,
                 handler: async (response: any) => {
                     try {
+                        // 3) Verify payment and create order in DB
                         const verifyResp = await verifyRazorpayPayment({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
@@ -172,7 +161,8 @@ function CheckoutPageContent() {
                             return;
                         }
 
-                        window.location.href = `/account/orders/${order.id}`;
+                        // Redirect to order page (order was created during verification)
+                        window.location.href = `/orders/${verifyResp.data.orderId}`;
                     } catch (err) {
                         console.error("Failed to verify payment", err);
                         alert("Payment verification failed. If amount was deducted, please contact support.");
@@ -182,9 +172,6 @@ function CheckoutPageContent() {
                     color: "#008ECC",
                 },
             };
-
-            console.log("options", options);
-
 
             const rz = new (window as any).Razorpay(options);
             rz.open();

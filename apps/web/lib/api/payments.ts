@@ -9,6 +9,20 @@ export interface CreateRazorpayOrderRequest {
     amount: number;
 }
 
+export interface CreateRazorpayOrderFromCartRequest {
+    items: Array<{
+        productId: string;
+        variantId?: string;
+        quantity: number;
+        customDesignUrl?: string;
+        customText?: string;
+    }>;
+    addressId: string;
+    amount: number;
+    couponCode?: string;
+    shippingCharges?: number;
+}
+
 export interface CreateRazorpayOrderResponse {
     razorpayOrderId: string;
     amount: number;
@@ -29,12 +43,22 @@ export interface VerifyRazorpayPaymentResponse {
 }
 
 /**
- * Create a Razorpay order for an existing backend order
+ * Create a Razorpay order for an existing backend order (legacy)
  */
 export async function createRazorpayOrder(
     data: CreateRazorpayOrderRequest
 ): Promise<ApiResponse<CreateRazorpayOrderResponse>> {
     return post<CreateRazorpayOrderResponse>("/payment/create-order", data);
+}
+
+/**
+ * Create a Razorpay order directly from cart data
+ * Order will be created in DB only after successful payment verification
+ */
+export async function createRazorpayOrderFromCart(
+    data: CreateRazorpayOrderFromCartRequest
+): Promise<ApiResponse<CreateRazorpayOrderResponse>> {
+    return post<CreateRazorpayOrderResponse>("/payment/create-order-from-cart", data);
 }
 
 /**
