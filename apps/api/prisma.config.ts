@@ -3,6 +3,10 @@
 import "dotenv/config";
 import { defineConfig, env } from "prisma/config";
 
+// Use a dummy URL during build if DATABASE_URL is not set (for prisma generate)
+// prisma generate doesn't actually need a real database connection
+const databaseUrl = process.env.DATABASE_URL || "postgresql://dummy:dummy@dummy:5432/dummy";
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -10,6 +14,6 @@ export default defineConfig({
     seed: "bun prisma/seed.ts",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: databaseUrl,
   },
 });
