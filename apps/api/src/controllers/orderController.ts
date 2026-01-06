@@ -275,17 +275,144 @@ export const getOrder = async (req: Request, res: Response, next: NextFunction) 
     }
 };
 
+/**
+ * @openapi
+ * /api/v1/admin/orders:
+ *   get:
+ *     summary: Get all orders (admin)
+ *     description: >
+ *       Returns a paginated list of orders for admin users. Supports filtering by status and
+ *       free-text search over order ID, customer email, and customer name.
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - name: status
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [PENDING_REVIEW, PROCESSING, SHIPPED, DELIVERED, CANCELLED]
+ *       - name: search
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Search by order ID, customer email, or customer name (case-insensitive).
+ *     responses:
+ *       200:
+ *         description: List of orders retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   required:
+ *                     - orders
+ *                     - pagination
+ *                   properties:
+ *                     orders:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           total:
+ *                             type: number
+ *                           status:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                                 format: email
+ *                               name:
+ *                                 type: string
+ *                                 nullable: true
+ *                           address:
+ *                             type: object
+ *                           items:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *       401:
+ *         description: Unauthorized - admin authentication required.
+ *       403:
+ *         description: Forbidden - user is not an admin.
+ */
 // Admin: Get all orders
 export const getAdminOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const status = req.query.status as string;
+        const search = req.query.search as string;
         const skip = (page - 1) * limit;
 
         const where: any = {};
+
         if (status) {
             where.status = status;
+        }
+
+        // Search functionality - search by order ID, user email, user name
+        if (search) {
+            where.OR = [
+                { id: { contains: search, mode: "insensitive" } },
+                {
+                    user: {
+                        OR: [
+                            { email: { contains: search, mode: "insensitive" } },
+                            { name: { contains: search, mode: "insensitive" } },
+                        ],
+                    },
+                },
+            ];
         }
 
         const [orders, total] = await Promise.all([
@@ -424,7 +551,7 @@ export const updateOrderStatus = async (req: Request, res: Response, next: NextF
         await prisma.orderStatusHistory.create({
             data: {
                 orderId: id,
-                status, 
+                status,
                 comment: comment || `Status updated to ${status}`,
             },
         });

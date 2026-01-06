@@ -221,6 +221,91 @@ paths:
                     type: boolean
                   error:
                     type: string
+    put:
+      summary: Update customer profile
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated successfully.
+        '401':
+          description: Unauthorized.
+  /api/v1/auth/user/password:
+    put:
+      summary: Update user password
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: Password updated successfully.
+        '400':
+          description: Invalid input or incorrect current password.
+        '401':
+          description: Unauthorized.
+  /api/v1/auth/user/notifications:
+    put:
+      summary: Update notification preferences
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - preferences
+              properties:
+                preferences:
+                  type: object
+      responses:
+        '200':
+          description: Notification preferences updated successfully.
+        '401':
+          description: Unauthorized.
+  /api/v1/auth/user/account:
+    delete:
+      summary: Delete user account
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account deleted successfully.
+        '401':
+          description: Unauthorized.
   /api/v1/cart:
     get:
       summary: Get current cart
@@ -448,6 +533,66 @@ paths:
           description: Validation error.
         '401':
           description: Unauthorized.
+  /api/v1/customer/address/{id}:
+    put:
+      summary: Update customer address
+      tags:
+        - Customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                street:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                zipCode:
+                  type: string
+                country:
+                  type: string
+                isDefault:
+                  type: boolean
+      responses:
+        '200':
+          description: Address updated.
+        '400':
+          description: Validation error.
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Address not found.
+    delete:
+      summary: Delete customer address
+      tags:
+        - Customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Address deleted.
+        '401':
+          description: Unauthorized.
+        '404':
+          description: Address not found.
   /api/v1/customer/orders:
     post:
       summary: Create an order
@@ -650,4 +795,1080 @@ paths:
                     type: boolean
                   error:
                     type: string
+  /api/v1/admin/coupons:
+    get:
+      summary: Get all coupons
+      description: Admin can view all coupons with usage statistics
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of coupons retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                          nullable: true
+                        discountType:
+                          type: string
+                          enum:
+                            - PERCENTAGE
+                            - FIXED
+                        discountValue:
+                          type: number
+                        minPurchaseAmount:
+                          type: number
+                          nullable: true
+                        maxDiscountAmount:
+                          type: number
+                          nullable: true
+                        usageLimit:
+                          type: integer
+                          nullable: true
+                        usageLimitPerUser:
+                          type: integer
+                        validFrom:
+                          type: string
+                          format: date-time
+                        validUntil:
+                          type: string
+                          format: date-time
+                        isActive:
+                          type: boolean
+                        applicableTo:
+                          type: string
+                          enum:
+                            - ALL
+                            - CATEGORY
+                            - PRODUCT
+                            - BRAND
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                        _count:
+                          type: object
+                          properties:
+                            usages:
+                              type: integer
+        '401':
+          description: Unauthorized - Admin authentication required
+    post:
+      summary: Create new coupon
+      description: Admin can create a new discount coupon
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+                - discountType
+                - discountValue
+                - validFrom
+                - validUntil
+              properties:
+                code:
+                  type: string
+                  example: SAVE20
+                name:
+                  type: string
+                  example: Save 20% Off
+                description:
+                  type: string
+                  example: Get 20% off on all products
+                discountType:
+                  type: string
+                  enum:
+                    - PERCENTAGE
+                    - FIXED
+                  example: PERCENTAGE
+                discountValue:
+                  type: number
+                  example: 20
+                minPurchaseAmount:
+                  type: number
+                  nullable: true
+                  example: 1000
+                maxDiscountAmount:
+                  type: number
+                  nullable: true
+                  example: 500
+                usageLimit:
+                  type: integer
+                  nullable: true
+                  example: 100
+                usageLimitPerUser:
+                  type: integer
+                  example: 1
+                validFrom:
+                  type: string
+                  format: date-time
+                  example: '2024-01-01T00:00:00Z'
+                validUntil:
+                  type: string
+                  format: date-time
+                  example: '2024-12-31T23:59:59Z'
+                isActive:
+                  type: boolean
+                  example: true
+                applicableTo:
+                  type: string
+                  enum:
+                    - ALL
+                    - CATEGORY
+                    - PRODUCT
+                    - BRAND
+                  example: ALL
+      responses:
+        '200':
+          description: Coupon created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Coupon created successfully
+                  data:
+                    type: object
+        '400':
+          description: Validation error or coupon code already exists
+        '401':
+          description: Unauthorized - Admin authentication required
+  /api/v1/admin/coupons/{id}:
+    get:
+      summary: Get single coupon by ID
+      description: Admin can view detailed coupon information including usage history
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Coupon ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Coupon details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      discountType:
+                        type: string
+                      discountValue:
+                        type: number
+                      minPurchaseAmount:
+                        type: number
+                        nullable: true
+                      maxDiscountAmount:
+                        type: number
+                        nullable: true
+                      usageLimit:
+                        type: integer
+                        nullable: true
+                      usageLimitPerUser:
+                        type: integer
+                      validFrom:
+                        type: string
+                        format: date-time
+                      validUntil:
+                        type: string
+                        format: date-time
+                      isActive:
+                        type: boolean
+                      applicableTo:
+                        type: string
+                      usages:
+                        type: array
+                        items:
+                          type: object
+                      offerProducts:
+                        type: array
+                        items:
+                          type: object
+                      _count:
+                        type: object
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Coupon not found
+    put:
+      summary: Update coupon
+      description: Admin can update coupon details
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Coupon ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                discountType:
+                  type: string
+                  enum:
+                    - PERCENTAGE
+                    - FIXED
+                discountValue:
+                  type: number
+                minPurchaseAmount:
+                  type: number
+                  nullable: true
+                maxDiscountAmount:
+                  type: number
+                  nullable: true
+                usageLimit:
+                  type: integer
+                  nullable: true
+                usageLimitPerUser:
+                  type: integer
+                validFrom:
+                  type: string
+                  format: date-time
+                validUntil:
+                  type: string
+                  format: date-time
+                isActive:
+                  type: boolean
+                applicableTo:
+                  type: string
+                  enum:
+                    - ALL
+                    - CATEGORY
+                    - PRODUCT
+                    - BRAND
+      responses:
+        '200':
+          description: Coupon updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Coupon updated successfully
+                  data:
+                    type: object
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Coupon not found
+    delete:
+      summary: Delete coupon
+      description: Admin can delete a coupon
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Coupon ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Coupon deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Coupon deleted successfully
+                  data:
+                    type: null
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Coupon not found
+  /api/v1/admin/payments:
+    get:
+      summary: Get all payments
+      description: Admin can view all payment transactions
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of payments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        orderId:
+                          type: string
+                        userId:
+                          type: string
+                        amount:
+                          type: number
+                        discountAmount:
+                          type: number
+                          nullable: true
+                        razorpayOrderId:
+                          type: string
+                          nullable: true
+                        razorpayPaymentId:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                          enum:
+                            - PENDING
+                            - SUCCESS
+                            - FAILED
+                            - REFUNDED
+                        method:
+                          type: string
+                          enum:
+                            - ONLINE
+                            - COD
+                            - WALLET
+                        couponId:
+                          type: string
+                          nullable: true
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                        user:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            email:
+                              type: string
+                        order:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            status:
+                              type: string
+                            total:
+                              type: number
+        '401':
+          description: Unauthorized - Admin authentication required
+  /api/v1/admin/payments/{id}:
+    get:
+      summary: Get single payment by ID
+      description: Admin can view detailed payment information
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Payment ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      orderId:
+                        type: string
+                      userId:
+                        type: string
+                      amount:
+                        type: number
+                      discountAmount:
+                        type: number
+                        nullable: true
+                      razorpayOrderId:
+                        type: string
+                        nullable: true
+                      razorpayPaymentId:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum:
+                          - PENDING
+                          - SUCCESS
+                          - FAILED
+                          - REFUNDED
+                      method:
+                        type: string
+                        enum:
+                          - ONLINE
+                          - COD
+                          - WALLET
+                      couponId:
+                        type: string
+                        nullable: true
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          phone:
+                            type: string
+                      order:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            type: string
+                          total:
+                            type: number
+                          items:
+                            type: array
+                          address:
+                            type: object
+                      coupon:
+                        type: object
+                        nullable: true
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Payment not found
+  /api/v1/admin/reviews:
+    get:
+      summary: Get all reviews
+      description: Admin can view all product reviews for moderation
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        productId:
+                          type: string
+                        userId:
+                          type: string
+                        rating:
+                          type: integer
+                          minimum: 1
+                          maximum: 5
+                        title:
+                          type: string
+                          nullable: true
+                        comment:
+                          type: string
+                          nullable: true
+                        images:
+                          type: array
+                          items:
+                            type: string
+                        isVerifiedPurchase:
+                          type: boolean
+                        isHelpful:
+                          type: integer
+                        isApproved:
+                          type: boolean
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+                        product:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                        user:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            email:
+                              type: string
+        '401':
+          description: Unauthorized - Admin authentication required
+  /api/v1/admin/reviews/{id}:
+    get:
+      summary: Get single review by ID
+      description: Admin can view detailed review information
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Review ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      productId:
+                        type: string
+                      userId:
+                        type: string
+                      rating:
+                        type: integer
+                      title:
+                        type: string
+                        nullable: true
+                      comment:
+                        type: string
+                        nullable: true
+                      images:
+                        type: array
+                        items:
+                          type: string
+                      isVerifiedPurchase:
+                        type: boolean
+                      isHelpful:
+                        type: integer
+                      isApproved:
+                        type: boolean
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      product:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          slug:
+                            type: string
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          email:
+                            type: string
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Review not found
+    put:
+      summary: Update review (approve/reject)
+      description: Admin can approve or reject product reviews
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Review ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isApproved:
+                  type: boolean
+                  example: true
+                  description: Set to true to approve, false to reject
+      responses:
+        '200':
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Review updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      isApproved:
+                        type: boolean
+                      product:
+                        type: object
+                      user:
+                        type: object
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Review not found
+    delete:
+      summary: Delete review
+      description: Admin can delete a product review (recalculates product rating)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Review ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Review deleted successfully
+                  data:
+                    type: null
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Review not found
+  /api/v1/admin/users:
+    get:
+      summary: Get all customer users
+      description: Admin can view and manage all customer users (non-admin users only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of customer users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          example: 123e4567-e89b-12d3-a456-426614174000
+                        email:
+                          type: string
+                          format: email
+                          example: customer@example.com
+                        name:
+                          type: string
+                          nullable: true
+                          example: John Doe
+                        phone:
+                          type: string
+                          nullable: true
+                          example: '+1234567890'
+                        isAdmin:
+                          type: boolean
+                          example: false
+                        isSuperAdmin:
+                          type: boolean
+                          example: false
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+        '401':
+          description: Unauthorized - Admin authentication required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Unauthorized
+  /api/v1/admin/users/{id}:
+    get:
+      summary: Get single customer user by ID
+      description: Admin can view detailed information about a specific customer user
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Customer user ID
+          schema:
+            type: string
+            example: 123e4567-e89b-12d3-a456-426614174000
+      responses:
+        '200':
+          description: Customer user details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      name:
+                        type: string
+                        nullable: true
+                      phone:
+                        type: string
+                        nullable: true
+                      isAdmin:
+                        type: boolean
+                      isSuperAdmin:
+                        type: boolean
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      addresses:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            street:
+                              type: string
+                            city:
+                              type: string
+                            state:
+                              type: string
+                            zipCode:
+                              type: string
+                            country:
+                              type: string
+                            isDefault:
+                              type: boolean
+                      _count:
+                        type: object
+                        properties:
+                          orders:
+                            type: integer
+                          reviews:
+                            type: integer
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Customer user not found
+    put:
+      summary: Update customer user
+      description: Admin can update customer user information (name and phone only)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Customer user ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                phone:
+                  type: string
+                  example: '+1234567890'
+      responses:
+        '200':
+          description: Customer user updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Customer user updated successfully
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                        nullable: true
+                      phone:
+                        type: string
+                        nullable: true
+                      isAdmin:
+                        type: boolean
+                      isSuperAdmin:
+                        type: boolean
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Customer user not found
+    delete:
+      summary: Delete customer user
+      description: Admin can delete customer users (cascade deletes related records)
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Customer user ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer user deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Customer user deleted successfully
+                  data:
+                    type: null
+        '401':
+          description: Unauthorized - Admin authentication required
+        '404':
+          description: Customer user not found
 tags: []

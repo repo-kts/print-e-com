@@ -59,12 +59,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Invalid token, remove it
         setAuthToken(undefined);
         removeUserCookie();
+        setUser(null);
       }
     } catch (error) {
       console.error('[AuthContext] Error fetching profile:', error);
-      // Error fetching profile, user might not be authenticated
-      setAuthToken(undefined);
-      removeUserCookie();
+
+      // Only logout on authentication errors (401), not network errors
+      const apiError = error as ApiError;
+      if (apiError.statusCode === 401) {
+        // Invalid token - clear authentication
+        console.log('[AuthContext] 401 error - invalid token, logging out');
+        setAuthToken(undefined);
+        removeUserCookie();
+        setUser(null);
+      } else if (apiError.statusCode === 0 || !apiError.statusCode) {
+        // Network error - don't logout, keep cached user if available
+        console.log('[AuthContext] Network error - keeping cached user');
+        if (!cachedUser) {
+          // No cached user and network error - clear state
+          setUser(null);
+        }
+      } else {
+        // Other errors (500, etc.) - don't logout, might be temporary
+        console.log('[AuthContext] API error (non-auth) - keeping user state');
+        // Keep user state, error might be temporary
+      }
     } finally {
       setLoading(false);
     }
@@ -125,10 +144,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.data);
         // Update user info in cookie
         setUserCookie(response.data);
+      } else {
+        // Invalid response - check if it's an auth error
+        const token = getAuthToken();
+        if (!token) {
+          // No token means already logged out
+          return;
+        }
+        // Invalid token response - logout
+        console.log('[AuthContext] Refresh failed - invalid token response');
+        logout();
       }
     } catch (error) {
-      // If refresh fails, user might not be authenticated
-      logout();
+      const apiError = error as ApiError;
+
+      // Only logout on authentication errors
+      if (apiError.statusCode === 401) {
+        console.log('[AuthContext] Refresh failed - 401 error, logging out');
+        logout();
+      } else {
+        // Network or other errors - don't logout, might be temporary
+        console.log('[AuthContext] Refresh failed - non-auth error, keeping user state:', apiError.message);
+        // Keep current user state, don't logout on temporary errors
+      }
     }
   };
 

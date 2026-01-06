@@ -4,7 +4,7 @@ import { sendSuccess } from "../utils/response.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
 import { Prisma } from "../../generated/prisma/client.js";
 
-// Get all categories
+// Get all categories (public)
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const categories = await prisma.category.findMany({
@@ -13,6 +13,161 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
         });
 
         return sendSuccess(res, categories);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/categories:
+ *   get:
+ *     summary: Get all categories (admin)
+ *     description: Returns a paginated list of product categories for admins, with optional search by name, slug, or description.
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Free-text search across category name, slug, and description (case-insensitive).
+ *     responses:
+ *       200:
+ *         description: List of categories retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   required:
+ *                     - categories
+ *                     - pagination
+ *                   properties:
+ *                     categories:
+ *                       type: array
+ *                       items:
+ *                         type: object
+                         properties:
+                           id:
+                             type: string
+                           name:
+                             type: string
+                           slug:
+                             type: string
+                           description:
+                             type: string
+                             nullable: true
+                           isActive:
+                             type: boolean
+                           parent:
+                             type: object
+                             nullable: true
+                             properties:
+                               id:
+                                 type: string
+                               name:
+                                 type: string
+                               slug:
+                                 type: string
+                           createdAt:
+                             type: string
+                             format: date-time
+                           updatedAt:
+                             type: string
+                             format: date-time
+                           _count:
+                             type: object
+                             properties:
+                               products:
+                                 type: integer
+                     pagination:
+                       type: object
+                       properties:
+                         page:
+                           type: integer
+                         limit:
+                           type: integer
+                         total:
+                           type: integer
+                         totalPages:
+                           type: integer
+       401:
+         description: Unauthorized - admin authentication required.
+ */
+export const getAdminCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const search = (req.query.search as string) || "";
+        const skip = (page - 1) * limit;
+
+        const where: Prisma.CategoryWhereInput = {};
+
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: "insensitive" } },
+                { slug: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+            ];
+        }
+
+        const [categories, total] = await Promise.all([
+            prisma.category.findMany({
+                where,
+                include: {
+                    parent: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true,
+                        },
+                    },
+                    _count: {
+                        select: {
+                            products: true,
+                        },
+                    },
+                },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+            }),
+            prisma.category.count({ where }),
+        ]);
+
+        return sendSuccess(res, {
+            categories,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit) || 1,
+            },
+        });
     } catch (error) {
         next(error);
     }

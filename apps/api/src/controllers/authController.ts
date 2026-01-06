@@ -168,6 +168,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
                         id: user.id,
                         email: user.email,
                         name: user.name,
+                        phone: user.phone,
+                        isAdmin: user.isAdmin,
                     },
                     token: data.session.access_token, // Supabase JWT token
                 }, "Login successful");
