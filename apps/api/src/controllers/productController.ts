@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../services/prisma.js";
+import { Prisma } from "../../generated/prisma/client.js";
 import { sendSuccess } from "../utils/response.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
-import { Prisma } from "../../generated/prisma/client.js";
+import { prisma } from "../services/prisma.js";
 
 // Get all categories (public)
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
