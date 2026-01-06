@@ -117,7 +117,7 @@ export const createReview = async (req: Request, res: Response, next: NextFuncti
         });
 
         if (!product) {
-            throw new NotFoundError("Product not found"); 
+            throw new NotFoundError("Product not found");
         }
 
         // Check if user already reviewed this product
@@ -381,6 +381,458 @@ export const voteReviewHelpful = async (req: Request, res: Response, next: NextF
         });
 
         return sendSuccess(res, { helpfulCount }, "Vote recorded successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/reviews:
+ *   get:
+ *     summary: Get all reviews
+ *     description: Admin can view all product reviews for moderation
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of reviews retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       productId:
+ *                         type: string
+ *                       userId:
+ *                         type: string
+ *                       rating:
+ *                         type: integer
+ *                         minimum: 1
+ *                         maximum: 5
+ *                       title:
+ *                         type: string
+ *                         nullable: true
+ *                       comment:
+ *                         type: string
+ *                         nullable: true
+ *                       images:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       isVerifiedPurchase:
+ *                         type: boolean
+ *                       isHelpful:
+ *                         type: integer
+ *                       isApproved:
+ *                         type: boolean
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                       product:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Get all reviews
+export const getAdminReviews = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const reviews = await prisma.review.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return sendSuccess(res, reviews);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/reviews/{id}:
+ *   get:
+ *     summary: Get single review by ID
+ *     description: Admin can view detailed review information
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Review ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Review details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     productId:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     rating:
+ *                       type: integer
+ *                     title:
+ *                       type: string
+ *                       nullable: true
+ *                     comment:
+ *                       type: string
+ *                       nullable: true
+ *                     images:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     isVerifiedPurchase:
+ *                       type: boolean
+ *                     isHelpful:
+ *                       type: integer
+ *                     isApproved:
+ *                       type: boolean
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     product:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         slug:
+ *                           type: string
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *       404:
+ *         description: Review not found
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Get single review
+export const getAdminReview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            throw new ValidationError("Review ID is required");
+        }
+
+        const review = await prisma.review.findUnique({
+            where: { id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                    },
+                },
+            },
+        });
+
+        if (!review) {
+            throw new NotFoundError("Review not found");
+        }
+
+        return sendSuccess(res, review);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/reviews/{id}:
+ *   put:
+ *     summary: Update review (approve/reject)
+ *     description: Admin can approve or reject product reviews
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Review ID
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               isApproved:
+ *                 type: boolean
+ *                 example: true
+ *                 description: Set to true to approve, false to reject
+ *     responses:
+ *       200:
+ *         description: Review updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *                 - message
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: "Review updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     isApproved:
+ *                       type: boolean
+ *                     product:
+ *                       type: object
+ *                     user:
+ *                       type: object
+ *       404:
+ *         description: Review not found
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Update review (approve/reject)
+export const updateAdminReview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const { isApproved } = req.body;
+
+        if (!id) {
+            throw new ValidationError("Review ID is required");
+        }
+
+        const review = await prisma.review.findUnique({
+            where: { id },
+        });
+
+        if (!review) {
+            throw new NotFoundError("Review not found");
+        }
+
+        const updatedReview = await prisma.review.update({
+            where: { id },
+            data: {
+                isApproved: isApproved !== undefined ? isApproved : review.isApproved,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        // Recalculate product rating if approval status changed
+        if (isApproved !== undefined && isApproved !== review.isApproved) {
+            const allReviews = await prisma.review.findMany({
+                where: {
+                    productId: review.productId,
+                    isApproved: true,
+                },
+                select: { rating: true },
+            });
+
+            const avgRating = allReviews.length > 0
+                ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+                : null;
+
+            await prisma.product.update({
+                where: { id: review.productId },
+                data: {
+                    rating: avgRating,
+                    totalReviews: allReviews.length,
+                },
+            });
+        }
+
+        return sendSuccess(res, updatedReview, "Review updated successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/reviews/{id}:
+ *   delete:
+ *     summary: Delete review
+ *     description: Admin can delete a product review (recalculates product rating)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Review ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Review deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - message
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Review deleted successfully"
+ *                 data:
+ *                   type: null
+ *       404:
+ *         description: Review not found
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Delete review
+export const deleteAdminReview = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            throw new ValidationError("Review ID is required");
+        }
+
+        const review = await prisma.review.findUnique({
+            where: { id },
+        });
+
+        if (!review) {
+            throw new NotFoundError("Review not found");
+        }
+
+        await prisma.review.delete({
+            where: { id },
+        });
+
+        // Recalculate product rating
+        const allReviews = await prisma.review.findMany({
+            where: {
+                productId: review.productId,
+                isApproved: true,
+            },
+            select: { rating: true },
+        });
+
+        const avgRating = allReviews.length > 0
+            ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+            : null;
+
+        await prisma.product.update({
+            where: { id: review.productId },
+            data: {
+                rating: avgRating,
+                totalReviews: allReviews.length,
+            },
+        });
+
+        return sendSuccess(res, null, "Review deleted successfully");
     } catch (error) {
         next(error);
     }

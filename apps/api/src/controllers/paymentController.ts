@@ -538,3 +538,266 @@ async function handleOrderPaid(payload: any) {
     });
 }
 
+/**
+ * @openapi
+ * /api/v1/admin/payments:
+ *   get:
+ *     summary: Get all payments
+ *     description: Admin can view all payment transactions
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of payments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       orderId:
+ *                         type: string
+ *                       userId:
+ *                         type: string
+ *                       amount:
+ *                         type: number
+ *                       discountAmount:
+ *                         type: number
+ *                         nullable: true
+ *                       razorpayOrderId:
+ *                         type: string
+ *                         nullable: true
+ *                       razorpayPaymentId:
+ *                         type: string
+ *                         nullable: true
+ *                       status:
+ *                         type: string
+ *                         enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+ *                       method:
+ *                         type: string
+ *                         enum: [ONLINE, COD, WALLET]
+ *                       couponId:
+ *                         type: string
+ *                         nullable: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                       order:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           total:
+ *                             type: number
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Get all payments
+export const getAdminPayments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const payments = await prisma.payment.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                order: {
+                    select: {
+                        id: true,
+                        status: true,
+                        total: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return sendSuccess(res, payments);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * @openapi
+ * /api/v1/admin/payments/{id}:
+ *   get:
+ *     summary: Get single payment by ID
+ *     description: Admin can view detailed payment information
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Payment ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - success
+ *                 - data
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     orderId:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     amount:
+ *                       type: number
+ *                     discountAmount:
+ *                       type: number
+ *                       nullable: true
+ *                     razorpayOrderId:
+ *                       type: string
+ *                       nullable: true
+ *                     razorpayPaymentId:
+ *                       type: string
+ *                       nullable: true
+ *                     status:
+ *                       type: string
+ *                       enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+ *                     method:
+ *                       type: string
+ *                       enum: [ONLINE, COD, WALLET]
+ *                     couponId:
+ *                       type: string
+ *                       nullable: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         phone:
+ *                           type: string
+ *                     order:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         status:
+ *                           type: string
+ *                         total:
+ *                           type: number
+ *                         items:
+ *                           type: array
+ *                         address:
+ *                           type: object
+ *                     coupon:
+ *                       type: object
+ *                       nullable: true
+ *       404:
+ *         description: Payment not found
+ *       401:
+ *         description: Unauthorized - Admin authentication required
+ */
+// Admin: Get single payment
+export const getAdminPayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            throw new ValidationError("Payment ID is required");
+        }
+
+        const payment = await prisma.payment.findUnique({
+            where: { id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                order: {
+                    include: {
+                        items: {
+                            include: {
+                                product: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+                            },
+                        },
+                        address: true,
+                    },
+                },
+                coupon: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        if (!payment) {
+            throw new NotFoundError("Payment not found");
+        }
+
+        return sendSuccess(res, payment);
+    } catch (error) {
+        next(error);
+    }
+};
+
