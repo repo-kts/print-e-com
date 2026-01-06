@@ -64,17 +64,36 @@ export interface CreateVariantData {
   available?: boolean;
 }
 
+export interface ProductQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  brand?: string;
+}
+
 /**
- * Get all products
+ * Get paginated products with optional filters/search
  */
-export async function getProducts(): Promise<Product[]> {
-  const response = await get<ProductListResponse>('/products');
+export async function getProducts(params: ProductQueryParams = {}): Promise<ProductListResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.limit) searchParams.set('limit', String(params.limit));
+  if (params.search) searchParams.set('search', params.search);
+  if (params.category) searchParams.set('category', params.category);
+  if (params.brand) searchParams.set('brand', params.brand);
+
+  const query = searchParams.toString();
+  const endpoint = query ? `/products?${query}` : '/products';
+
+  const response = await get<ProductListResponse>(endpoint);
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch products');
   }
 
-  return response.data.products;
+  return response.data;
 }
 
 /**

@@ -391,11 +391,41 @@ export const voteReviewHelpful = async (req: Request, res: Response, next: NextF
  * /api/v1/admin/reviews:
  *   get:
  *     summary: Get all reviews
- *     description: Admin can view all product reviews for moderation
+ *     description: Admin can view all product reviews for moderation with pagination and search.
  *     tags:
  *       - Admin
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for review title, comment, product name, or user email/name
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 5
+ *         description: Filter reviews by rating
+ *       - in: query
+ *         name: isApproved
+ *         schema:
+ *           type: boolean
+ *         description: Filter reviews by approval status
  *     responses:
  *       200:
  *         description: List of reviews retrieved successfully
@@ -411,84 +441,151 @@ export const voteReviewHelpful = async (req: Request, res: Response, next: NextF
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       productId:
- *                         type: string
- *                       userId:
- *                         type: string
- *                       rating:
- *                         type: integer
- *                         minimum: 1
- *                         maximum: 5
- *                       title:
- *                         type: string
- *                         nullable: true
- *                       comment:
- *                         type: string
- *                         nullable: true
- *                       images:
- *                         type: array
- *                         items:
- *                           type: string
- *                       isVerifiedPurchase:
- *                         type: boolean
- *                       isHelpful:
- *                         type: integer
- *                       isApproved:
- *                         type: boolean
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
- *                       product:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
  *                         type: object
  *                         properties:
  *                           id:
  *                             type: string
- *                           name:
+ *                           productId:
  *                             type: string
- *                       user:
- *                         type: object
- *                         properties:
- *                           id:
+ *                           userId:
  *                             type: string
- *                           name:
+ *                           rating:
+ *                             type: integer
+ *                             minimum: 1
+ *                             maximum: 5
+ *                           title:
  *                             type: string
- *                           email:
+ *                             nullable: true
+ *                           comment:
  *                             type: string
+ *                             nullable: true
+ *                           images:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           isVerifiedPurchase:
+ *                             type: boolean
+ *                           isHelpful:
+ *                             type: integer
+ *                           isApproved:
+ *                             type: boolean
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           product:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
  *       401:
  *         description: Unauthorized - Admin authentication required
  */
 // Admin: Get all reviews
 export const getAdminReviews = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const reviews = await prisma.review.findMany({
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                    },
-                },
-                product: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const search = req.query.search as string;
+        const rating = req.query.rating ? parseInt(req.query.rating as string) : undefined;
+        const isApproved = req.query.isApproved !== undefined
+            ? req.query.isApproved === 'true'
+            : undefined;
+        const skip = (page - 1) * limit;
 
-        return sendSuccess(res, reviews);
+        const where: any = {};
+
+        if (rating) {
+            where.rating = rating;
+        }
+
+        if (isApproved !== undefined) {
+            where.isApproved = isApproved;
+        }
+
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: "insensitive" } },
+                { comment: { contains: search, mode: "insensitive" } },
+                {
+                    product: {
+                        name: { contains: search, mode: "insensitive" },
+                    },
+                },
+                {
+                    user: {
+                        OR: [
+                            { email: { contains: search, mode: "insensitive" } },
+                            { name: { contains: search, mode: "insensitive" } },
+                        ],
+                    },
+                },
+            ];
+        }
+
+        const [reviews, total] = await Promise.all([
+            prisma.review.findMany({
+                where,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
+                    },
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+                skip,
+                take: limit,
+                orderBy: { createdAt: "desc" },
+            }),
+            prisma.review.count({ where }),
+        ]);
+
+        return sendSuccess(res, {
+            items: reviews,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
     } catch (error) {
         next(error);
     }

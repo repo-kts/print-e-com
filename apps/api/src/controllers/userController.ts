@@ -8,11 +8,33 @@ import { ValidationError, NotFoundError } from "../utils/errors";
  * /api/v1/admin/users:
  *   get:
  *     summary: Get all customer users
- *     description: Admin can view and manage all customer users (non-admin users only)
+ *     description: Admin can view and manage all customer users (non-admin users only) with pagination and search.
  *     tags:
  *       - Admin
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - name: search
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Search by name, email, or phone
  *     responses:
  *       200:
  *         description: List of customer users retrieved successfully
@@ -28,37 +50,58 @@ import { ValidationError, NotFoundError } from "../utils/errors";
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         example: "123e4567-e89b-12d3-a456-426614174000"
- *                       email:
- *                         type: string
- *                         format: email
- *                         example: "customer@example.com"
- *                       name:
- *                         type: string
- *                         nullable: true
- *                         example: "John Doe"
- *                       phone:
- *                         type: string
- *                         nullable: true
- *                         example: "+1234567890"
- *                       isAdmin:
- *                         type: boolean
- *                         example: false
- *                       isSuperAdmin:
- *                         type: boolean
- *                         example: false
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                       updatedAt:
- *                         type: string
- *                         format: date-time
+ *                   type: object
+ *                   required:
+ *                     - items
+ *                     - pagination
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: "123e4567-e89b-12d3-a456-426614174000"
+ *                           email:
+ *                             type: string
+ *                             format: email
+ *                             example: "customer@example.com"
+ *                           name:
+ *                             type: string
+ *                             nullable: true
+ *                             example: "John Doe"
+ *                           phone:
+ *                             type: string
+ *                             nullable: true
+ *                             example: "+1234567890"
+ *                           isAdmin:
+ *                             type: boolean
+ *                             example: false
+ *                           isSuperAdmin:
+ *                             type: boolean
+ *                             example: false
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 20
+ *                         total:
+ *                           type: integer
+ *                           example: 100
+ *                         totalPages:
+ *                           type: integer
+ *                           example: 5
  *       401:
  *         description: Unauthorized - Admin authentication required
  *         content:
@@ -75,25 +118,53 @@ import { ValidationError, NotFoundError } from "../utils/errors";
  */
 export const getAdminUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const users = await prisma.user.findMany({
-            where: {
-                isAdmin: false,
-                isSuperAdmin: false,
-            },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                phone: true,
-                isAdmin: true,
-                isSuperAdmin: true,
-                createdAt: true,
-                updatedAt: true,
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const search = (req.query.search as string) || "";
+        const skip = (page - 1) * limit;
 
-        return sendSuccess(res, users);
+        const where: any = {
+            isAdmin: false,
+            isSuperAdmin: false,
+        };
+
+        if (search) {
+            where.OR = [
+                { email: { contains: search, mode: "insensitive" } },
+                { name: { contains: search, mode: "insensitive" } },
+                { phone: { contains: search, mode: "insensitive" } },
+            ];
+        }
+
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                where,
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    phone: true,
+                    isAdmin: true,
+                    isSuperAdmin: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+            }),
+            prisma.user.count({ where }),
+        ]);
+
+        return sendSuccess(res, {
+            items: users,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit) || 1,
+            },
+        });
     } catch (error) {
         next(error);
     }

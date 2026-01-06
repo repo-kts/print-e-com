@@ -33,11 +33,42 @@ export interface UpdateReviewData {
   isApproved?: boolean;
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: PaginationMeta;
+}
+
+export interface ReviewQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  rating?: number;
+  isApproved?: boolean;
+}
+
 /**
- * Get all reviews
+ * Get all reviews with pagination and search
  */
-export async function getReviews(): Promise<Review[]> {
-  const response = await get<Review[]>('/admin/reviews');
+export async function getReviews(
+  params?: ReviewQueryParams
+): Promise<PaginatedResponse<Review>> {
+  const queryString = new URLSearchParams();
+  if (params?.page) queryString.append('page', params.page.toString());
+  if (params?.limit) queryString.append('limit', params.limit.toString());
+  if (params?.search) queryString.append('search', params.search);
+  if (params?.rating) queryString.append('rating', params.rating.toString());
+  if (params?.isApproved !== undefined) queryString.append('isApproved', params.isApproved.toString());
+
+  const response = await get<PaginatedResponse<Review>>(
+    `/admin/reviews?${queryString.toString()}`
+  );
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch reviews');

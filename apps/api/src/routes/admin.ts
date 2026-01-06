@@ -5,6 +5,7 @@ import {
     deleteProduct,
     addVariant,
     createCategoties,
+    getAdminCategories,
 } from "../controllers/productController.js";
 import {
     getAdminOrders,
@@ -36,6 +37,7 @@ const router: IRouter = Router();
 router.use(adminAuth);
 
 // Product & Category Management (admin only)
+router.get("/categories", getAdminCategories);
 router.post("/categories", createCategoties);
 router.post("/products", createProduct);
 router.put("/products/:id", updateProduct);

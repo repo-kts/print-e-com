@@ -78,7 +78,20 @@ async function fetchAPI<T>(
             headers,
         });
 
-        const data = await response.json();
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            // Non-JSON response (might be HTML error page)
+            const text = await response.text();
+            data = {
+                error: text || 'An error occurred',
+                message: `Server returned ${response.status}: ${response.statusText}`,
+            };
+        }
 
         if (!response.ok) {
             const error: ApiError = {
@@ -87,12 +100,20 @@ async function fetchAPI<T>(
                 errors: data.errors,
             };
 
-            // Handle authentication errors
+            // Only clear token and redirect on 401 for auth-specific endpoints
+            // This prevents logout when admin lacks permission for a specific resource
             if (response.status === 401) {
-                setAuthToken(undefined);
-                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-                    window.location.href = '/login';
+                const authEndpoints = ['/admin/auth/verify', '/admin/auth/profile', '/admin/auth/me'];
+                const isAuthEndpoint = authEndpoints.some(authPath => endpoint.includes(authPath));
+
+                if (isAuthEndpoint) {
+                    // Invalid token on auth endpoint - clear it
+                    setAuthToken(undefined);
+                    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+                        window.location.href = '/login';
+                    }
                 }
+                // For non-auth endpoints, 401 might be a permission issue, not invalid token
             }
 
             throw error;

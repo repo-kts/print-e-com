@@ -22,17 +22,52 @@ export interface CreateCategoryData {
   parentId?: string;
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedCategories {
+  items: Category[];
+  pagination: PaginationMeta;
+}
+
+export interface CategoryQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
 /**
- * Get all categories
+ * Get paginated categories (admin) with optional search
  */
-export async function getCategories(): Promise<Category[]> {
-  const response = await get<Category[]>('/categories');
+export async function getCategories(
+  params: CategoryQueryParams = {}
+): Promise<PaginatedCategories> {
+  const searchParams = new URLSearchParams();
+
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.limit) searchParams.set('limit', String(params.limit));
+  if (params.search) searchParams.set('search', params.search);
+
+  const query = searchParams.toString();
+  const endpoint = query ? `/admin/categories?${query}` : '/admin/categories';
+
+  const response = await get<{
+    categories: Category[];
+    pagination: PaginationMeta;
+  }>(endpoint);
 
   if (!response.success || !response.data) {
     throw new Error(response.error || 'Failed to fetch categories');
   }
 
-  return response.data;
+  return {
+    items: response.data.categories,
+    pagination: response.data.pagination,
+  };
 }
 
 /**
