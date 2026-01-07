@@ -44,7 +44,6 @@ export function CreateProductForm() {
 
         // Step 2
         categoryId: '',
-        brandId: undefined,
         basePrice: 0,
         sellingPrice: undefined,
         mrp: undefined,
@@ -240,20 +239,6 @@ export function CreateProductForm() {
                                 Start by pasting an existing category ID; category picker will be added
                                 later.
                             </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="brandId">Brand ID</Label>
-                            <Input
-                                id="brandId"
-                                value={formData.brandId || ''}
-                                onChange={(e) =>
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        brandId: e.target.value || undefined,
-                                    }))
-                                }
-                            />
                         </div>
                     </div>
 

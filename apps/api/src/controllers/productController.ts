@@ -242,7 +242,6 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
         const isFeatured = req.query.isFeatured as string;
         const isBestSeller = req.query.isBestSeller as string;
         const isNewArrival = req.query.isNewArrival as string;
-        const brand = req.query.brand as string;
         const minPrice = req.query.minPrice as string;
         const maxPrice = req.query.maxPrice as string;
         const sortBy = (req.query.sortBy as string) || 'createdAt';
@@ -289,22 +288,6 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
             where.isNewArrival = true;
         }
 
-        // Brand filter
-        if (brand) {
-            const brandRecord = await prisma.brand.findFirst({
-                where: {
-                    OR: [
-                        { slug: brand.toLowerCase() },
-                        { name: { contains: brand, mode: "insensitive" } },
-                    ],
-                },
-            });
-
-            if (brandRecord) {
-                where.brandId = brandRecord.id;
-            }
-        }
-
         // Price range filter
         if (minPrice || maxPrice) {
             where.basePrice = {};
@@ -333,7 +316,6 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
                 where,
                 include: {
                     category: true,
-                    brand: true,
                     variants: {
                         where: { available: true },
                     },
@@ -379,7 +361,6 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
         const isBestSeller = req.query.isBestSeller as string;
         const isNewArrival = req.query.isNewArrival as string;
         const isActive = req.query.isActive as string;
-        const brand = req.query.brand as string;
         const minPrice = req.query.minPrice as string;
         const maxPrice = req.query.maxPrice as string;
         const sortBy = (req.query.sortBy as string) || "createdAt";
@@ -434,23 +415,6 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
             where.isNewArrival = true;
         }
 
-        // Brand filter
-        if (brand) {
-            const brandRecord = await prisma.brand.findFirst({
-                where: {
-                    OR: [
-                        { id: brand },
-                        { slug: brand.toLowerCase() },
-                        { name: { contains: brand, mode: "insensitive" } },
-                    ],
-                },
-            });
-
-            if (brandRecord) {
-                where.brandId = brandRecord.id;
-            }
-        }
-
         // Price range filter (on basePrice)
         if (minPrice || maxPrice) {
             where.basePrice = {};
@@ -481,7 +445,6 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
                 where,
                 include: {
                     category: true,
-                    brand: true,
                     variants: true,
                     images: {
                         orderBy: { displayOrder: "asc" },
@@ -522,7 +485,6 @@ export const getProduct = async (req: Request, res: Response, next: NextFunction
             where: { id },
             include: {
                 category: true,
-                brand: true,
                 variants: {
                     where: { available: true },
                 },
@@ -588,7 +550,6 @@ export const getAdminProduct = async (req: Request, res: Response, next: NextFun
             where: { id },
             include: {
                 category: true,
-                brand: true,
                 variants: true,
                 images: {
                     orderBy: { displayOrder: "asc" },
@@ -634,7 +595,6 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
             sellingPrice,
             mrp,
             categoryId,
-            brandId,
             sku,
             stock,
             minOrderQuantity,
@@ -687,7 +647,6 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
                 sellingPrice: sellingPrice ? parseFloat(sellingPrice) : null,
                 mrp: mrp ? parseFloat(mrp) : null,
                 categoryId,
-                brandId: brandId || null,
                 sku: sku || null,
                 stock: stock || 0,
                 minOrderQuantity: minOrderQuantity || 1,
@@ -753,7 +712,6 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
             },
             include: {
                 category: true,
-                brand: true,
                 variants: true,
                 images: true,
                 specifications: true,
@@ -781,7 +739,6 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
             sellingPrice,
             mrp,
             categoryId,
-            brandId,
             sku,
             stock,
             minOrderQuantity,
@@ -833,7 +790,6 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         if (sellingPrice !== undefined) updateData.sellingPrice = sellingPrice ? parseFloat(sellingPrice) : null;
         if (mrp !== undefined) updateData.mrp = mrp ? parseFloat(mrp) : null;
         if (categoryId) updateData.categoryId = categoryId;
-        if (brandId !== undefined) updateData.brandId = brandId || null;
         if (sku !== undefined) updateData.sku = sku || null;
         if (stock !== undefined) updateData.stock = parseInt(stock);
         if (minOrderQuantity !== undefined) updateData.minOrderQuantity = parseInt(minOrderQuantity);
@@ -852,7 +808,6 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
             data: updateData,
             include: {
                 category: true,
-                brand: true,
                 variants: true,
                 images: true,
                 specifications: true,
@@ -916,7 +871,6 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
             where: { id },
             include: {
                 category: true,
-                brand: true,
                 variants: true,
                 images: true,
                 specifications: true,

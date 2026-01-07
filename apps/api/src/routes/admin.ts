@@ -24,10 +24,6 @@ import { getAdminPayment, getAdminPayments } from "../controllers/paymentControl
 import { deleteAdminReview, getAdminReviews } from "../controllers/reviewController.js";
 import { getAdminReview } from "../controllers/reviewController.js";
 import { updateAdminReview } from "../controllers/reviewController.js";
-import { deleteAdminBrand, getAdminBrands } from "../controllers/brandController.js";
-import { getAdminBrand } from "../controllers/brandController.js";
-import { createAdminBrand } from "../controllers/brandController.js";
-import { updateAdminBrand } from "../controllers/brandController.js";
 import {
     getCategorySpecifications,
     createCategorySpecification,
@@ -100,13 +96,6 @@ router.get("/reviews", getAdminReviews);
 router.get("/reviews/:id", getAdminReview);
 router.put("/reviews/:id", updateAdminReview);
 router.delete("/reviews/:id", deleteAdminReview);
-
-// Brand Management (admin only)
-router.get("/brands", getAdminBrands);
-router.get("/brands/:id", getAdminBrand);
-router.post("/brands", createAdminBrand);
-router.put("/brands/:id", updateAdminBrand);
-router.delete("/brands/:id", deleteAdminBrand);
 
 // Category Specifications Management (admin only)
 router.get("/categories/:id/specifications", getCategorySpecifications);

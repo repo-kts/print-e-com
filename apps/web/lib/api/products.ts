@@ -41,7 +41,6 @@ export interface Product {
     sellingPrice?: number;
     mrp?: number;
     categoryId: string;
-    brandId?: string;
     sku?: string;
     stock: number;
     minOrderQuantity: number;
@@ -61,11 +60,6 @@ export interface Product {
     createdAt: string;
     updatedAt: string;
     category?: Category;
-    brand?: {
-        id: string;
-        name: string;
-        slug: string;
-    };
     images?: ProductImage[];
     variants?: ProductVariant[];
     specifications: ProductSpecification[];
@@ -109,7 +103,6 @@ export interface ProductListParams {
     page?: number;
     limit?: number;
     category?: string;
-    brand?: string;
     minPrice?: number;
     maxPrice?: number;
     sortBy?: 'price' | 'rating' | 'createdAt' | 'totalSold';
