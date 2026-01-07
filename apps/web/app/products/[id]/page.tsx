@@ -69,9 +69,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             // In a real implementation, you'd upload to server here
             const objectUrl = URL.createObjectURL(file);
             setUploadedFileUrl(objectUrl);
-                } else {
+        } else {
             setUploadedFileUrl(null);
-                }
+        }
     };
 
     // Handle add to cart
@@ -191,10 +191,50 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                         </div>
                     )}
 
+                    {/* Attributes & Tags */}
+                    {(product.attributes && product.attributes.length > 0) ||
+                        (product.tags && product.tags.length > 0) ? (
+                        <div className="space-y-4">
+                            {product.attributes && product.attributes.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        Attributes
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.attributes.map((attr) => (
+                                            <span
+                                                key={attr.id}
+                                                className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700"
+                                            >
+                                                {attr.attributeType}: {attr.attributeValue}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {product.tags && product.tags.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        Tags
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.tags.map((tag) => (
+                                            <span
+                                                key={tag.id}
+                                                className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700"
+                                            >
+                                                {tag.tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+
                     {/* Additional Info */}
                     <div className="space-y-2 text-sm text-gray-600">
                         {product.sku && <p>SKU: {product.sku}</p>}
-                        {product.brand && <p>Brand: {product.brand.name}</p>}
                         {product.weight && <p>Weight: {product.weight} kg</p>}
                         {product.dimensions && <p>Dimensions: {product.dimensions}</p>}
                         {product.returnPolicy && (
@@ -686,8 +726,19 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                                     <QuantitySelector
                                         quantity={quantity}
                                         onQuantityChange={setQuantity}
-                                        max={product.stock}
+                                        min={product.minOrderQuantity || 1}
+                                        max={
+                                            product.maxOrderQuantity && product.maxOrderQuantity > 0
+                                                ? Math.min(product.maxOrderQuantity, product.stock)
+                                                : product.stock
+                                        }
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Min order: {product.minOrderQuantity || 1}
+                                        {product.maxOrderQuantity
+                                            ? ` • Max per order: ${product.maxOrderQuantity}`
+                                            : ''}
+                                    </p>
                                 </div>
                             </div>
 
