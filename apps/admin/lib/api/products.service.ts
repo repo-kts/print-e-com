@@ -27,12 +27,6 @@ export interface Category {
     updatedAt: string;
 }
 
-export interface Brand {
-    id: string;
-    name: string;
-    slug: string;
-}
-
 export interface ProductImage {
     id: string;
     productId: string;
@@ -83,7 +77,6 @@ export interface Product {
     sellingPrice?: number | null;
     mrp?: number | null;
     categoryId: string;
-    brandId?: string | null;
     sku?: string | null;
     stock: number;
     minOrderQuantity: number;
@@ -103,7 +96,6 @@ export interface Product {
     createdAt: string;
     updatedAt: string;
     category: Category;
-    brand?: Brand | null;
     variants: ProductVariant[];
     images: ProductImage[];
     specifications: ProductSpecification[];
@@ -124,7 +116,6 @@ export interface CreateProductData {
 
     // Step 2: Classification & Pricing
     categoryId: string;
-    brandId?: string;
     basePrice: number;
     sellingPrice?: number | null;
     mrp?: number | null;
@@ -187,7 +178,6 @@ export interface ProductQueryParams {
     limit?: number;
     search?: string;
     category?: string;
-    brand?: string;
     isActive?: boolean;
     isFeatured?: boolean;
     isNewArrival?: boolean;
@@ -204,7 +194,6 @@ export async function getProducts(params: ProductQueryParams = {}): Promise<Prod
     if (params.limit) searchParams.set('limit', String(params.limit));
     if (params.search) searchParams.set('search', params.search);
     if (params.category) searchParams.set('category', params.category);
-    if (params.brand) searchParams.set('brand', params.brand);
     if (params.isActive !== undefined) searchParams.set('isActive', String(params.isActive));
     if (params.isFeatured !== undefined) searchParams.set('isFeatured', String(params.isFeatured));
     if (params.isNewArrival !== undefined) searchParams.set('isNewArrival', String(params.isNewArrival));
