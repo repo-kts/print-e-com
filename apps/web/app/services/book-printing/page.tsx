@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProductPageTemplate } from '@/app/components/services/ProductPageTemplate';
 import { OptionSelector } from '@/app/components/services/print/OptionSelector';
 import { QuantitySelector } from '@/app/components/services/QuantitySelector';
 import { BOOK_PRINTOUTS, BOOK_BINDING_PRODUCTS } from "@/constant/services/book-printing"
 import { ProductData } from '@/types';
+import { addToCart } from '@/lib/api/cart';
+import { getProducts } from '@/lib/api/products';
 
 type BookPaperSize = 'A5' | 'B5' | 'A4' | 'A3';
 type BookPaperType = '70 Gsm';
@@ -24,6 +27,7 @@ const BOOK_BINDING_PAGES_OPTIONS: BookBindingPages[] = [
 ];
 
 export default function BookPrintingPage() {
+    const router = useRouter();
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [selectedPaperSize, setSelectedPaperSize] = useState<BookPaperSize>('A4');
     const [selectedBindingType, setSelectedBindingType] = useState<BookBindingType>('Glue Binding');
@@ -33,6 +37,8 @@ export default function BookPrintingPage() {
     const [quantity, setQuantity] = useState<number>(1);
     const [priceBreakdown, setPriceBreakdown] = useState<Array<{ label: string; value: number }>>([]);
     const [totalPrice, setTotalPrice] = useState<number>(0);
+    const [addToCartLoading, setAddToCartLoading] = useState(false);
+    const [buyNowLoading, setBuyNowLoading] = useState(false);
 
     // Get selected book data
     const selectedBookData = BOOK_PRINTOUTS.find(book => book.paperSize === selectedPaperSize);
@@ -141,36 +147,105 @@ export default function BookPrintingPage() {
         { label: 'Book Printing', href: '/book-printing', isActive: true },
     ];
 
-    const handleAddToCart = () => {
-        const orderData = {
-            bookSize: selectedPaperSize,
-            bindingType: selectedBindingType,
-            color: selectedColor,
-            side: selectedSide,
-            bindingPages: selectedBindingPages,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    // Helper function to find book product by configuration
+    const findBookProduct = async () => {
+        try {
+            // Format: "Book A4 B/W Single Side" or "Book A4 Color Both Sides"
+            const colorText = selectedColor === 'bw' ? 'B/W' : 'Color';
+            const sideText = selectedSide === 'single' ? 'Single Side' : 'Both Sides';
+            const productName = `Book ${selectedPaperSize} ${colorText} ${sideText}`;
+            
+            console.log('🔎 Searching for book product:', productName);
+            
+            const response = await getProducts({
+                search: productName,
+                category: 'books',
+                limit: 1
+            });
 
-        console.log('Adding to cart:', orderData);
-        // Add to cart logic here
+            console.log('📡 API Response:', response);
+
+            if (response.success && response.data && response.data.products.length > 0) {
+                console.log('✅ Product found:', response.data.products[0]);
+                return response.data.products[0];
+            }
+            
+            console.log('⚠️ No product found');
+            return null;
+        } catch (error) {
+            console.error('❌ Error finding product:', error);
+            return null;
+        }
     };
 
-    const handleBuyNow = () => {
-        const orderData = {
-            bookSize: selectedPaperSize,
-            bindingType: selectedBindingType,
-            color: selectedColor,
-            side: selectedSide,
-            bindingPages: selectedBindingPages,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    const handleAddToCart = async () => {
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
 
-        console.log('Buying now:', orderData);
-        // Buy now logic here
+        try {
+            setAddToCartLoading(true);
+            const product = await findBookProduct();
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: uploadedFile.name
+            });
+
+            if (response.success) {
+                alert('✅ Added to cart successfully!');
+                // Trigger a page refresh to update cart count
+                window.location.reload();
+            } else {
+                alert(`❌ Failed: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Failed to add to cart. Please try again.');
+        } finally {
+            setAddToCartLoading(false);
+        }
+    };
+
+    const handleBuyNow = async () => {
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
+
+        try {
+            setBuyNowLoading(true);
+            const product = await findBookProduct();
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: uploadedFile.name
+            });
+
+            if (response.success) {
+                router.push('/checkout');
+            } else {
+                alert(`❌ Failed: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error:', error);
+            alert('❌ Failed to process. Please try again.');
+        } finally {
+            setBuyNowLoading(false);
+        }
     };
 
     return (
@@ -184,6 +259,8 @@ export default function BookPrintingPage() {
             totalPrice={totalPrice}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
+            addToCartLoading={addToCartLoading}
+            buyNowLoading={buyNowLoading}
         >
             {/* Configuration options */}
             <div className="space-y-8">

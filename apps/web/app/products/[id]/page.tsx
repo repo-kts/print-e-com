@@ -87,6 +87,8 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         if (success) {
             // Show success message or notification
             alert("Product added to cart successfully!");
+            // Trigger a page refresh to update cart count
+            window.location.reload();
         } else {
             alert("Failed to add product to cart. Please try again.");
         }

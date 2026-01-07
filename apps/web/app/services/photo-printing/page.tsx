@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProductPageTemplate } from '@/app/components/services/ProductPageTemplate';
 import { OptionSelector } from '@/app/components/services/print/OptionSelector';
 import { QuantitySelector } from '@/app/components/services/QuantitySelector';
@@ -10,6 +11,8 @@ import {
     GLOSSY_LAMINATION_PRODUCTS
 } from '@/constant/services/photo-printing'
 import { ProductData } from '@/types';
+import { addToCart } from '@/lib/api/cart';
+import { getProducts } from '@/lib/api/products';
 
 type PhotoType = 'glossy' | 'matt';
 type PhotoSize = '4X6' | '5X7' | '8X10' | 'A4' | '8X12' | '10X15' | '12X18' | 'A3' | 'A2' | 'A1' | 'A0';
@@ -30,6 +33,7 @@ const getLaminationSizes = (): LaminationType[] => {
 const ALL_PHOTO_SIZES = getAllPhotoSizes();
 
 export default function PhotoPrintingPage() {
+    const router = useRouter();
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [selectedPhotoType, setSelectedPhotoType] = useState<PhotoType>('glossy');
     const [selectedPhotoSize, setSelectedPhotoSize] = useState<PhotoSize>('4X6');
@@ -37,6 +41,8 @@ export default function PhotoPrintingPage() {
     const [quantity, setQuantity] = useState<number>(1);
     const [priceBreakdown, setPriceBreakdown] = useState<Array<{ label: string; value: number }>>([]);
     const [totalPrice, setTotalPrice] = useState<number>(0);
+    const [addToCartLoading, setAddToCartLoading] = useState(false);
+    const [buyNowLoading, setBuyNowLoading] = useState(false);
 
     // Get available sizes for selected photo type
     const getAvailableSizes = (): PhotoSize[] => {
@@ -168,32 +174,132 @@ export default function PhotoPrintingPage() {
         { label: 'Photo Printing', href: '/photo-printing', isActive: true },
     ];
 
-    const handleAddToCart = () => {
-        const orderData = {
-            photoType: selectedPhotoType,
-            photoSize: selectedPhotoSize,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    // Helper function to find product by configuration
+    const findProductByConfig = async (photoType: PhotoType, photoSize: PhotoSize) => {
+        try {
+            // Search for the product by name
+            const productName = `${photoType === 'glossy' ? 'Glossy' : 'Matt'} Photo ${photoSize}`;
+            console.log('🔎 Searching for product with name:', productName);
+            
+            // Search in photo-printout category
+            const response = await getProducts({
+                search: productName,
+                category: 'photo-printout',
+                limit: 1
+            });
 
-        console.log('Adding to cart:', orderData);
-        // Add to cart logic here
+            console.log('📡 API Response:', response);
+
+            if (response.success && response.data && response.data.products.length > 0) {
+                console.log('✅ Product found:', response.data.products[0]);
+                return response.data.products[0];
+            }
+            
+            console.log('⚠️ No product found matching criteria');
+            return null;
+        } catch (error) {
+            console.error('❌ Error finding product:', error);
+            return null;
+        }
     };
 
-    const handleBuyNow = () => {
-        const orderData = {
-            photoType: selectedPhotoType,
-            photoSize: selectedPhotoSize,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    const handleAddToCart = async () => {
+        console.log('🛒 handleAddToCart called', { uploadedFile, selectedPhotoType, selectedPhotoSize, quantity });
+        
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
 
-        console.log('Buying now:', orderData);
-        // Buy now logic here
+        try {
+            setAddToCartLoading(true);
+
+            // Find the product based on selection
+            console.log('🔍 Searching for product...');
+            const product = await findProductByConfig(selectedPhotoType, selectedPhotoSize);
+            console.log('📦 Product found:', product);
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            // Upload file URL would be implemented here
+            // For now, using file name as placeholder
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            console.log('➕ Adding to cart with productId:', product.id);
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            console.log('📥 Add to cart response:', response);
+
+            if (response.success) {
+                alert('✅ Added to cart successfully!');
+                // Trigger a page refresh to update cart count
+                window.location.reload();
+            } else {
+                alert(`❌ Failed to add to cart: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error adding to cart:', error);
+            alert('❌ Failed to add to cart. Please try again.');
+        } finally {
+            setAddToCartLoading(false);
+        }
+    };
+
+    const handleBuyNow = async () => {
+        console.log('💳 handleBuyNow called', { uploadedFile, selectedPhotoType, selectedPhotoSize, quantity });
+        
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
+
+        try {
+            setBuyNowLoading(true);
+
+            // Find the product based on selection
+            console.log('🔍 Searching for product...');
+            const product = await findProductByConfig(selectedPhotoType, selectedPhotoSize);
+            console.log('📦 Product found:', product);
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            // Upload file URL would be implemented here
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            console.log('➕ Adding to cart before checkout with productId:', product.id);
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            console.log('📥 Add to cart response:', response);
+
+            if (response.success) {
+                console.log('✅ Success! Redirecting to checkout...');
+                // Redirect to checkout
+                router.push('/checkout');
+            } else {
+                alert(`❌ Failed to process: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error processing buy now:', error);
+            alert('❌ Failed to process. Please try again.');
+        } finally {
+            setBuyNowLoading(false);
+        }
     };
 
     // Handle photo size change
@@ -216,6 +322,8 @@ export default function PhotoPrintingPage() {
             totalPrice={totalPrice}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
+            addToCartLoading={addToCartLoading}
+            buyNowLoading={buyNowLoading}
         >
             {/* Configuration options */}
             <div className="space-y-8">

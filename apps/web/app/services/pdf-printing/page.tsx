@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProductPageTemplate } from '@/app/components/services/ProductPageTemplate';
 import { OptionSelector } from '@/app/components/services/print/OptionSelector';
 import { QuantitySelector } from '@/app/components/services/QuantitySelector';
 import { A4_PRINTOUTS, A3_PRINTOUTS, BINDING_PRODUCTS, LAMINATION_PRODUCTS } from '@/constant/services/pdf-printing'
 import { ProductData } from '@/types';
+import { addToCart } from '@/lib/api/cart';
+import { getProducts } from '@/lib/api/products';
 
 type PaperSize = 'A4' | 'A3';
 type A4PaperType = '65 Gsm' | '70 Gsm' | '75 Gsm' | '100 Gsm' | '100 Gsm BOND';
@@ -27,6 +30,7 @@ const BINDING_PAGES_OPTIONS: BindingPages[] = [
 ];
 
 export default function PDFPrintingPage() {
+    const router = useRouter();
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>('A4');
     const [selectedBindingType, setSelectedBindingType] = useState<BindingType>('Spiral Binding');
@@ -39,6 +43,8 @@ export default function PDFPrintingPage() {
     const [quantity, setQuantity] = useState<number>(1);
     const [priceBreakdown, setPriceBreakdown] = useState<Array<{ label: string; value: number }>>([]);
     const [totalPrice, setTotalPrice] = useState<number>(0);
+    const [addToCartLoading, setAddToCartLoading] = useState(false);
+    const [buyNowLoading, setBuyNowLoading] = useState(false);
 
     // Get current paper options based on selected size
     const currentPaperOptions = selectedPaperSize === 'A4' ? A4_PRINTOUTS : A3_PRINTOUTS;
@@ -182,42 +188,133 @@ export default function PDFPrintingPage() {
         { label: 'PDF Printing', href: '/pdf-printing', isActive: true },
     ];
 
-    const handleAddToCart = () => {
-        const orderData = {
-            paperSize: selectedPaperSize,
-            bindingType: selectedBindingType,
-            paperType: selectedPaperType,
-            color: selectedColor,
-            side: selectedSide,
-            bindingPages: selectedBindingType === 'Hard Binding' ? undefined : selectedBindingPages,
-            hardBindingType: selectedBindingType === 'Hard Binding' ? selectedHardBindingType : undefined,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    // Helper function to find product by configuration
+    const findPrintoutProduct = async () => {
+        try {
+            // Construct product name based on configuration
+            // Format from seed: "A4 70 Gsm B/W Single Side" or "A4 70 Gsm Color Both Sides"
+            const colorText = selectedColor === 'bw' ? 'B/W' : 'Color';
+            const sideText = selectedSide === 'single' ? 'Single Side' : 'Both Sides';
+            const productName = `${selectedPaperSize} ${selectedPaperType} ${colorText} ${sideText}`;
+            
+            console.log('🔎 Searching for printout product:', productName);
+            
+            // Search in printout category
+            const response = await getProducts({
+                search: productName,
+                category: 'printout',
+                limit: 1
+            });
 
-        console.log('Adding to cart:', orderData);
-        // Add to cart logic here
+            console.log('📡 API Response:', response);
+
+            if (response.success && response.data && response.data.products.length > 0) {
+                console.log('✅ Product found:', response.data.products[0]);
+                return response.data.products[0];
+            }
+            
+            console.log('⚠️ No product found matching criteria');
+            return null;
+        } catch (error) {
+            console.error('❌ Error finding product:', error);
+            return null;
+        }
     };
 
-    const handleBuyNow = () => {
-        const orderData = {
-            paperSize: selectedPaperSize,
-            bindingType: selectedBindingType,
-            paperType: selectedPaperType,
-            color: selectedColor,
-            side: selectedSide,
-            bindingPages: selectedBindingType === 'Hard Binding' ? undefined : selectedBindingPages,
-            hardBindingType: selectedBindingType === 'Hard Binding' ? selectedHardBindingType : undefined,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    const handleAddToCart = async () => {
+        console.log('🛒 handleAddToCart called');
+        
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
 
-        console.log('Buying now:', orderData);
-        // Buy now logic here
+        try {
+            setAddToCartLoading(true);
+
+            // Find the product based on selection
+            console.log('🔍 Searching for product...');
+            const product = await findPrintoutProduct();
+            console.log('📦 Product found:', product);
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            console.log('➕ Adding to cart with productId:', product.id);
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            console.log('📥 Add to cart response:', response);
+
+            if (response.success) {
+                alert('✅ Added to cart successfully!');
+                // Trigger a page refresh to update cart count
+                window.location.reload();
+            } else {
+                alert(`❌ Failed to add to cart: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error adding to cart:', error);
+            alert('❌ Failed to add to cart. Please try again.');
+        } finally {
+            setAddToCartLoading(false);
+        }
+    };
+
+    const handleBuyNow = async () => {
+        console.log('💳 handleBuyNow called');
+        
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
+
+        try {
+            setBuyNowLoading(true);
+
+            // Find the product based on selection
+            console.log('🔍 Searching for product...');
+            const product = await findPrintoutProduct();
+            console.log('📦 Product found:', product);
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            console.log('➕ Adding to cart before checkout with productId:', product.id);
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            console.log('📥 Add to cart response:', response);
+
+            if (response.success) {
+                console.log('✅ Success! Redirecting to checkout...');
+                // Redirect to checkout
+                router.push('/checkout');
+            } else {
+                alert(`❌ Failed to process: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('❌ Error processing buy now:', error);
+            alert('❌ Failed to process. Please try again.');
+        } finally {
+            setBuyNowLoading(false);
+        }
     };
 
     // Features component to show above price breakdown
@@ -233,6 +330,8 @@ export default function PDFPrintingPage() {
             totalPrice={totalPrice}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
+            addToCartLoading={addToCartLoading}
+            buyNowLoading={buyNowLoading}
         >
             {/* Configuration options */}
             <div className="space-y-8">

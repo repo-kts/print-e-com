@@ -6,7 +6,7 @@ import { AuthProvider } from "../contexts/AuthContext";
 import { ProductConfigProvider } from "@/contexts/ProductConfigContext";
 
 export const metadata: Metadata = {
-    title: "PrintEcom - Custom Printing Solutions",
+    title: "PAGZ - Custom Printing Solutions",
     description: "Your trusted partner for custom printing solutions. Quality products, fast delivery.",
 };
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useCart } from "../../../hooks/cart/useCart";
 import { BadgePercent, MapPin, ShoppingCart, Truck, User, Menu, X, ChevronDown } from "lucide-react";
 import Image from "next/image";
 
@@ -35,6 +36,7 @@ function SearchParamsSync({
 
 export default function Header() {
     const { user, isAuthenticated, logout, loading } = useAuth();
+    const { items: cartItems } = useCart();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +49,9 @@ export default function Header() {
     const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const headerRef = useRef<HTMLElement>(null);
     const categoryBarRef = useRef<HTMLDivElement>(null);
+
+    // Calculate unique product count (number of items, not total quantity)
+    const cartItemCount = cartItems.length;
 
     const categories = [
         "All",
@@ -375,9 +380,11 @@ export default function Header() {
                         >
                             <ShoppingCart size={22} color="#008ECC" strokeWidth={2} />
                             <span className="text-sm font-bold font-hkgb hidden sm:inline">Cart</span>
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                                0
-                            </span>
+                            {cartItemCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                                    {cartItemCount}
+                                </span>
+                            )}
                         </Link>
 
                         {/* Mobile Menu Button */}

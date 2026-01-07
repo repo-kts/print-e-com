@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProductPageTemplate } from '@/app/components/services/ProductPageTemplate';
 import { OptionSelector } from '@/app/components/services/print/OptionSelector';
 import { QuantitySelector } from '@/app/components/services/QuantitySelector';
 import { MAP_PRODUCTS } from '@/constant/services/map-printing'
 import { ProductData } from '@/types';
+import { addToCart } from '@/lib/api/cart';
+import { getProducts } from '@/lib/api/products';
 
 type MapSize = 'A2' | 'A1' | 'A0' | 'A0+';
 type MapPaperType = '80 Gsm';
@@ -20,6 +23,7 @@ type PrintOption = {
 };
 
 export default function MapPrintingPage() {
+    const router = useRouter();
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [selectedMapSize, setSelectedMapSize] = useState<MapSize>('A2');
     const [selectedPrintType, setSelectedPrintType] = useState<PrintType>('B/W');
@@ -28,6 +32,8 @@ export default function MapPrintingPage() {
     const [quantity, setQuantity] = useState<number>(1);
     const [priceBreakdown, setPriceBreakdown] = useState<Array<{ label: string; value: number }>>([]);
     const [totalPrice, setTotalPrice] = useState<number>(0);
+    const [addToCartLoading, setAddToCartLoading] = useState(false);
+    const [buyNowLoading, setBuyNowLoading] = useState(false);
 
     // Get selected map data
     const selectedMapData = MAP_PRODUCTS.find(map => map.paperSize === selectedMapSize);
@@ -159,34 +165,110 @@ export default function MapPrintingPage() {
         { label: 'Map Printing', href: '/map-printing', isActive: true },
     ];
 
-    const handleAddToCart = () => {
-        const orderData = {
-            mapSize: selectedMapSize,
-            printType: selectedPrintType,
-            pricingType: selectedPricingType,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    // Helper function to find product by configuration
+    const findMapProduct = async () => {
+        try {
+            // Construct product name based on seed format
+            // Format: "Map A2 B/W" or "Map A2 Color"
+            const productName = `Map ${selectedMapSize} ${selectedPrintType}`;
+            
+            // Search in map category
+            const response = await getProducts({
+                search: productName,
+                category: 'map',
+                limit: 1
+            });
 
-        console.log('Adding to cart:', orderData);
-        // Add to cart logic here
+            if (response.success && response.data && response.data.products.length > 0) {
+                return response.data.products[0];
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error finding product:', error);
+            return null;
+        }
     };
 
-    const handleBuyNow = () => {
-        const orderData = {
-            mapSize: selectedMapSize,
-            printType: selectedPrintType,
-            pricingType: selectedPricingType,
-            lamination: selectedLamination,
-            quantity,
-            totalPrice,
-            uploadedFile: uploadedFile?.name
-        };
+    const handleAddToCart = async () => {
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
 
-        console.log('Buying now:', orderData);
-        // Buy now logic here
+        try {
+            setAddToCartLoading(true);
+
+            // Find the product
+            const product = await findMapProduct();
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            if (response.success) {
+                alert('✅ Added to cart successfully!');
+                // Trigger a page refresh to update cart count
+                window.location.reload();
+            } else {
+                alert(`❌ Failed to add to cart: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert('❌ Failed to add to cart. Please try again.');
+        } finally {
+            setAddToCartLoading(false);
+        }
+    };
+
+    const handleBuyNow = async () => {
+        if (!uploadedFile) {
+            alert('Please upload a file first');
+            return;
+        }
+
+        try {
+            setBuyNowLoading(true);
+
+            // Find the product
+            const product = await findMapProduct();
+            
+            if (!product) {
+                alert('Product not found. Please try a different configuration.');
+                return;
+            }
+
+            const customDesignUrl = uploadedFile.name;
+
+            // Add to cart
+            const response = await addToCart({
+                productId: product.id,
+                quantity: quantity,
+                customDesignUrl: customDesignUrl
+            });
+
+            if (response.success) {
+                // Redirect to checkout
+                router.push('/checkout');
+            } else {
+                alert(`❌ Failed to process: ${response.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error processing buy now:', error);
+            alert('❌ Failed to process. Please try again.');
+        } finally {
+            setBuyNowLoading(false);
+        }
     };
 
     // Reset pricing type when map size or print type changes
@@ -208,6 +290,8 @@ export default function MapPrintingPage() {
             totalPrice={totalPrice}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
+            addToCartLoading={addToCartLoading}
+            buyNowLoading={buyNowLoading}
         >
             {/* Configuration options */}
             <div className="space-y-8">
