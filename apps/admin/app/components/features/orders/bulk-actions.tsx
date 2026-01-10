@@ -13,6 +13,7 @@ import { Label } from '@/app/components/ui/label';
 import { Select } from '@/app/components/ui/select';
 import { Download, FileText, RefreshCw, Trash2, X } from 'lucide-react';
 import { type Order, type OrderStatus, updateOrderStatus, getOrderInvoice } from '@/lib/api/orders.service';
+import { toastError, toastSuccess, toastPromise } from '@/lib/utils/toast';
 
 interface BulkActionsProps {
     selectedOrders: Set<string>;
@@ -47,8 +48,9 @@ export function BulkActions({ selectedOrders, orders, onDeselectAll, onUpdate }:
             setComment('');
             onUpdate();
             onDeselectAll();
+            toastSuccess(`Updated ${selectedCount} order(s) successfully`);
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to update orders');
+            toastError(err instanceof Error ? err.message : 'Failed to update orders');
         } finally {
             setIsProcessing(false);
         }
@@ -78,8 +80,9 @@ export function BulkActions({ selectedOrders, orders, onDeselectAll, onUpdate }:
                 }
             }
             onDeselectAll();
+            toastSuccess(`Printed ${selectedCount} invoice(s)`);
         } catch (err) {
-            alert('Some invoices failed to print. Check console for details.');
+            toastError('Some invoices failed to print. Check console for details.');
         } finally {
             setIsProcessing(false);
         }

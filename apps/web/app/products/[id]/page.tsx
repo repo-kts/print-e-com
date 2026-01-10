@@ -18,6 +18,7 @@ import { useProduct } from "@/hooks/products/useProduct";
 import { useCart } from "@/contexts/CartContext";
 import { Star } from "lucide-react";
 import { uploadOrderFilesToS3 } from "@/lib/api/uploads";
+import { toastError, toastSuccess, toastPromise } from "@/lib/utils/toast";
 
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -104,17 +105,24 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         if (uploadedFiles.length > 0) {
             setUploadingFiles(true);
             try {
-                const uploadResponse = await uploadOrderFilesToS3(uploadedFiles);
+                const uploadResponse = await toastPromise(
+                    uploadOrderFilesToS3(uploadedFiles),
+                    {
+                        loading: 'Uploading files...',
+                        success: 'Files uploaded successfully!',
+                        error: 'Failed to upload files. Please try again.',
+                    }
+                );
                 if (uploadResponse.success && uploadResponse.data) {
                     s3Keys = uploadResponse.data.files.map(f => f.key);
                 } else {
-                    alert('Failed to upload files. Please try again.');
+                    toastError('Failed to upload files. Please try again.');
                     setUploadingFiles(false);
                     return;
                 }
             } catch (error) {
                 console.error('Error uploading files:', error);
-                alert('Failed to upload files. Please try again.');
+                toastError('Failed to upload files. Please try again.');
                 setUploadingFiles(false);
                 return;
             } finally {
@@ -132,10 +140,10 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         if (success) {
             // Reset uploaded files after adding to cart
             setUploadedFiles([]);
-            alert("Product added to cart successfully!");
+            toastSuccess("Product added to cart successfully!");
             // Trigger a page refresh to update cart count
         } else {
-            alert("Failed to add product to cart. Please try again.");
+            toastError("Failed to add product to cart. Please try again.");
         }
     };
 
@@ -148,17 +156,24 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         if (uploadedFiles.length > 0) {
             setUploadingFiles(true);
             try {
-                const uploadResponse = await uploadOrderFilesToS3(uploadedFiles);
+                const uploadResponse = await toastPromise(
+                    uploadOrderFilesToS3(uploadedFiles),
+                    {
+                        loading: 'Uploading files...',
+                        success: 'Files uploaded successfully!',
+                        error: 'Failed to upload files. Please try again.',
+                    }
+                );
                 if (uploadResponse.success && uploadResponse.data) {
                     s3Keys = uploadResponse.data.files.map(f => f.key);
                 } else {
-                    alert('Failed to upload files. Please try again.');
+                    toastError('Failed to upload files. Please try again.');
                     setUploadingFiles(false);
                     return;
                 }
             } catch (error) {
                 console.error('Error uploading files:', error);
-                alert('Failed to upload files. Please try again.');
+                toastError('Failed to upload files. Please try again.');
                 setUploadingFiles(false);
                 return;
             } finally {
@@ -174,7 +189,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         });
 
         if (!success) {
-            alert("Failed to proceed. Please try again.");
+            toastError("Failed to proceed. Please try again.");
         }
         // If success, user will be redirected to checkout
     };

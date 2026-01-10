@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { getProducts, type Product } from "../../lib/api/products";
+import { toastInfo } from "@/lib/utils/toast";
 
 export default function PopularProducts() {
     const [products, setProducts] = useState<Product[]>([]);
@@ -34,7 +35,7 @@ export default function PopularProducts() {
     const handleAddToCart = (productId: string) => {
         // TODO
         // Handle add to cart logic (will be implemented in Phase 2)
-        alert("Add TO Cart functionality is not implemented yet")
+        toastInfo("Add to cart functionality is not implemented yet");
     };
 
     // Loading skeleton

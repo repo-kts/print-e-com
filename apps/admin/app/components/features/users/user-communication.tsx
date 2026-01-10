@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Select } from '@/app/components/ui/select';
 import { Mail, Bell, Send } from 'lucide-react';
 import { updateUser, type User } from '@/lib/api/users.service';
+import { toastError, toastSuccess } from '@/lib/utils/toast';
 
 interface UserCommunicationProps {
     userId: string;
@@ -68,7 +69,7 @@ export function UserCommunication({ userId, user, onSuccess }: UserCommunication
             // Simulate API call
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            alert('Email sent successfully!');
+            toastSuccess('Email sent successfully!');
             setIsEmailModalOpen(false);
             setEmailSubject('');
             setEmailBody('');
@@ -140,9 +141,10 @@ The Team`,
             });
             setIsPreferencesModalOpen(false);
             onSuccess?.();
-            alert('Notification preferences updated successfully!');
+            toastSuccess('Notification preferences updated successfully!');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update preferences');
+            toastError(err instanceof Error ? err.message : 'Failed to update preferences');
         } finally {
             setIsSubmitting(false);
         }

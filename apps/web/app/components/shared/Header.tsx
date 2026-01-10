@@ -5,8 +5,9 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useCart } from "../../../contexts/CartContext";
-import { BadgePercent, MapPin, ShoppingCart, Truck, User, Menu, X, ChevronDown } from "lucide-react";
+import { BadgePercent, ShoppingCart, Truck, User, Menu, X, ChevronDown } from "lucide-react";
 import Image from "next/image";
+import { toastInfo } from "@/lib/utils/toast";
 
 // Component that uses useSearchParams - must be wrapped in Suspense
 function SearchParamsSync({
@@ -122,13 +123,13 @@ export default function Header() {
             </Suspense>
             {/* Top Bar - Hide on mobile */}
             <div className="hidden lg:block bg-gray-100">
-                <div className="w-full mx-auto px-4 sm:px-6 lg:px-30 py-4">
+                <div className="w-full mx-auto px-4 sm:px-6 lg:px-30 py-2">
                     <div className="flex items-center justify-between text-sm">
                         <div className="text-gray-600 text-sm font-light font-hkgr">
                             Welcome to worldwide Megamart!
                         </div>
                         <div className="flex items-center gap-4 text-xs">
-                            
+
                             {/* Track your order */}
                             <Link href="/orders" className="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 transition-colors">
                                 <Truck strokeWidth={1} color="#008ECC" size={18} />
@@ -149,22 +150,22 @@ export default function Header() {
             </div>
 
             {/* Main Header */}
-            <div className="bg-white w-full mx-auto px-4 sm:px-6 lg:px-30 py-2">
+            <div className="bg-white w-full mx-auto px-4 sm:px-6 lg:px-30 py-3">
                 <div className="flex items-center justify-between gap-4 sm:gap-6">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 shrink-0">
                         <Image
                             src="/images/pagz-logo.png"
                             alt="PAGZ logo"
-                            width={120}
-                            height={120}
-                            className="w-24 h-24 lg:w-[120px] lg:h-[120px]"
+                            width={80}
+                            height={80}
+                            className="w-16 h-16 lg:w-20 lg:h-20"
                         />
                     </Link>
 
                     {/* Search Bar - Hide on small mobile, show from sm */}
                     <form
-                        className="hidden sm:flex flex-1 max-w-3xl"
+                        className="hidden sm:flex flex-1 max-w-3xl gap-2"
                         onSubmit={(e) => {
                             e.preventDefault();
                             if (searchQuery.trim()) {
@@ -172,19 +173,19 @@ export default function Header() {
                             }
                         }}
                     >
-                        <div className="relative px-4 py-4 flex items-center bg-[#F3F9FB] rounded-lg focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100 transition-all w-full">
+                        <div className="relative px-3 py-2 flex items-center bg-[#F3F9FB] rounded-lg border border-gray-200 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100 transition-all flex-1">
                             {/* Search Icon */}
-                            <div className="pl-2 pr-2 lg:pl-4 lg:pr-2">
+                            <div className="pl-1 pr-2">
                                 <svg
-                                    width="20"
-                                    height="20"
+                                    width="18"
+                                    height="18"
                                     viewBox="0 0 24 24"
                                     fill="none"
                                     stroke="currentColor"
                                     strokeWidth="2"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    className="text-blue-600"
+                                    className="text-gray-400"
                                 >
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <path d="m21 21-4.35-4.35"></path>
@@ -194,20 +195,21 @@ export default function Header() {
                             {/* Search Input */}
                             <input
                                 type="text"
-                                placeholder="Search for t-shirts, mugs, posters..."
+                                placeholder="Search for products..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 py-2 px-2 lg:py-3 bg-transparent outline-none text-gray-700 placeholder:text-gray-400 text-sm lg:text-base"
+                                className="flex-1 py-1.5 px-1 bg-transparent outline-none text-gray-700 placeholder:text-gray-400 text-sm"
                             />
-
-                            {/* Category Menu Icon */}
-                            <button
-                                type="button"
-                                className="pr-2 pl-2 lg:pr-4 lg:pl-2 text-blue-600 hover:text-blue-700 transition-colors"
-                                aria-label="Categories"
-                            >
-                            </button>
                         </div>
+
+                        {/* Search Button */}
+                        <button
+                            type="submit"
+                            className="px-6 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-[#0077B5] transition-colors font-medium text-sm whitespace-nowrap"
+                            disabled={!searchQuery.trim()}
+                        >
+                            Search
+                        </button>
                     </form>
 
                     {/* Mobile Search Button - Show only on small screens */}
@@ -215,7 +217,7 @@ export default function Header() {
                         className="sm:hidden text-gray-700 p-2"
                         onClick={() => {
                             // You can implement a mobile search modal or slide-in here
-                            alert("Mobile search - implement modal or slide-in search");
+                            toastInfo("Mobile search feature coming soon");
                         }}
                         aria-label="Search"
                     >
@@ -384,9 +386,9 @@ export default function Header() {
                 className={`bg-white border-t border-gray-100 transition-all duration-300 ${isCategoryVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
                     }`}
             >
-                <div className="w-full px-4 sm:px-6 lg:px-30 py-3 lg:py-4 border-b border-gray-100">
+                <div className="w-full px-4 sm:px-6 lg:px-30 py-2 border-b border-gray-100">
                     <div className="flex xl:justify-center overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pb-2">
-                        <div className="flex items-center gap-2 lg:gap-6 min-w-max">
+                        <div className="flex items-center gap-2 lg:gap-4 min-w-max">
                             {categories.map((category) => {
                                 const isActive = activeCategory === category;
                                 const isHovered = hoveredCategory === category;
@@ -394,7 +396,7 @@ export default function Header() {
                                 return (
                                     <div
                                         key={category}
-                                        className={`relative flex items-center gap-1.5 px-4 py-2 lg:px-6 lg:py-3 rounded-2xl font-medium text-sm transition-all duration-200 whitespace-nowrap ${isActive
+                                        className={`relative flex items-center gap-1.5 px-3 py-1.5 lg:px-4 lg:py-2 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap ${isActive
                                             ? "bg-[#008ECC] text-white"
                                             : isHovered
                                                 ? "bg-[#008ECC]/80 text-white"

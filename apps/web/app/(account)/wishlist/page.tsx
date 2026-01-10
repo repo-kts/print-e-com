@@ -6,6 +6,8 @@ import { Heart, ShoppingCart, Trash2, Search, Package } from "lucide-react";
 import { getWishlist, removeFromWishlist, WishlistItem, WishlistResponse } from "@/lib/api/wishlist";
 import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
 import Image from "next/image";
+import { toastError, toastSuccess, toastInfo, toastPromise } from "@/lib/utils/toast";
+import { useConfirm } from "@/lib/hooks/use-confirm";
 
 function WishlistPageContent() {
     const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
@@ -13,6 +15,7 @@ function WishlistPageContent() {
     const [removingId, setRemovingId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [error, setError] = useState<string | null>(null);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     useEffect(() => {
         fetchWishlist();
@@ -38,25 +41,35 @@ function WishlistPageContent() {
     };
 
     const handleRemoveFromWishlist = async (productId: string) => {
-        if (!confirm('Are you sure you want to remove this item from your wishlist?')) {
-            return;
-        }
+        const confirmed = await confirm({
+            title: 'Remove from Wishlist',
+            description: 'Are you sure you want to remove this item from your wishlist?',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            variant: 'default',
+            onConfirm: async () => {
+                try {
+                    setRemovingId(productId);
+                    const response = await toastPromise(
+                        removeFromWishlist(productId),
+                        {
+                            loading: 'Removing from wishlist...',
+                            success: 'Removed from wishlist',
+                            error: 'Failed to remove item from wishlist',
+                        }
+                    );
 
-        try {
-            setRemovingId(productId);
-            const response = await removeFromWishlist(productId);
-
-            if (response.success) {
-                // Remove from local state
-                setWishlistItems(prev => prev.filter(item => item.productId !== productId));
-            } else {
-                alert(response.error || 'Failed to remove item from wishlist');
-            }
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to remove item');
-        } finally {
-            setRemovingId(null);
-        }
+                    if (response.success) {
+                        // Remove from local state
+                        setWishlistItems(prev => prev.filter(item => item.productId !== productId));
+                    }
+                } catch (err) {
+                    toastError(err instanceof Error ? err.message : 'Failed to remove item');
+                } finally {
+                    setRemovingId(null);
+                }
+            },
+        });
     };
 
     const filteredItems = wishlistItems.filter((item) => {
@@ -78,6 +91,7 @@ function WishlistPageContent() {
 
     return (
         <>
+            {ConfirmDialog}
             {/* Main Content */}
             <div className="flex-1">
                 {/* Header */}
@@ -269,7 +283,7 @@ function WishlistPageContent() {
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     // TODO: Add to cart functionality
-                                                    alert('Add to cart functionality coming soon');
+                                                    toastInfo('Add to cart functionality coming soon');
                                                 }}
                                                 className="flex items-center justify-center gap-1 px-3 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-[#0077B3] transition-colors text-sm font-medium"
                                                 title="Add to cart"

@@ -28,6 +28,7 @@ import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/format';
 import Link from 'next/link';
 import { Eye, Search, Image as ImageIcon, Download } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
+import { toastError, toastSuccess, toastPromise } from '@/lib/utils/toast';
 import { Input } from '@/app/components/ui/input';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { OrderStats } from './order-stats';
@@ -117,8 +118,9 @@ export function OrdersList() {
                 ...filters,
                 format: 'csv',
             });
+            toastSuccess('Orders exported successfully');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to export orders');
+            toastError(err instanceof Error ? err.message : 'Failed to export orders');
         }
     };
 

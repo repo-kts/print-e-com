@@ -13,6 +13,7 @@ import { Alert } from '@/app/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { updateUser, deleteUser, exportUsers, type User } from '@/lib/api/users.service';
+import { toastError, toastSuccess, toastInfo, toastPromise } from '@/lib/utils/toast';
 
 interface BulkActionsProps {
     selectedCount: number;
@@ -40,7 +41,7 @@ export function BulkActions({ selectedCount, selectedUserIds, onClearSelection, 
                 break;
             case 'email':
                 // TODO: Implement bulk email
-                alert('Bulk email functionality coming soon');
+                toastInfo('Bulk email functionality coming soon');
                 break;
             case 'role':
                 setIsRoleModalOpen(true);
@@ -86,9 +87,10 @@ export function BulkActions({ selectedCount, selectedUserIds, onClearSelection, 
             setAction('');
             onClearSelection();
             onUpdate?.();
-            alert(`Successfully updated ${selectedUserIds.length} user(s) to ${newRole}`);
+            toastSuccess(`Successfully updated ${selectedUserIds.length} user(s) to ${newRole}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update user roles');
+            toastError(err instanceof Error ? err.message : 'Failed to update user roles');
         } finally {
             setIsProcessing(false);
         }
@@ -107,9 +109,10 @@ export function BulkActions({ selectedCount, selectedUserIds, onClearSelection, 
             setAction('');
             onClearSelection();
             onUpdate?.();
-            alert(`Successfully deleted ${selectedUserIds.length} user(s)`);
+            toastSuccess(`Successfully deleted ${selectedUserIds.length} user(s)`);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete users');
+            toastError(err instanceof Error ? err.message : 'Failed to delete users');
         } finally {
             setIsProcessing(false);
         }

@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext';
 import { ProductData, BreadcrumbItem } from '@/types';
 import { Option } from '@/types';
 import { uploadOrderFilesToS3 } from '@/lib/api/uploads';
+import { toastWarning, toastError, toastSuccess, toastPromise } from '@/lib/utils/toast';
 
 interface DynamicServicePageProps {
     params: Promise<{ categorySlug: string }>;
@@ -313,19 +314,19 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
 
         // Check if file is required and uploaded
         if (category?.configuration?.fileUploadRequired && uploadedFiles.length === 0) {
-            alert('Please upload a file to continue.');
+            toastWarning('Please upload a file to continue.');
             return;
         }
 
         // Check if product is out of stock
         if (matchingProduct && matchingProduct.stock <= 0) {
-            alert('This product is out of stock. Please select a different combination or contact us.');
+            toastWarning('This product is out of stock. Please select a different combination or contact us.');
             return;
         }
 
         // Check if product exists
         if (!matchingProduct?.id) {
-            alert('Product does not exist. Please contact us.');
+            toastWarning('Product does not exist. Please contact us.');
             return;
         }
 
@@ -336,18 +337,25 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             if (uploadedFiles.length > 0) {
                 setUploadingFiles(true);
                 try {
-                    const uploadResponse = await uploadOrderFilesToS3(uploadedFiles);
+                    const uploadResponse = await toastPromise(
+                        uploadOrderFilesToS3(uploadedFiles),
+                        {
+                            loading: 'Uploading files...',
+                            success: 'Files uploaded successfully!',
+                            error: 'Failed to upload files. Please try again.',
+                        }
+                    );
                     if (uploadResponse.success && uploadResponse.data) {
                         s3Keys = uploadResponse.data.files.map(f => f.key);
                     } else {
-                        alert('Failed to upload files. Please try again.');
+                        toastError('Failed to upload files. Please try again.');
                         setAddingToCart(false);
                         setUploadingFiles(false);
                         return;
                     }
                 } catch (error) {
                     console.error('Error uploading files:', error);
-                    alert('Failed to upload files. Please try again.');
+                    toastError('Failed to upload files. Please try again.');
                     setAddingToCart(false);
                     setUploadingFiles(false);
                     return;
@@ -357,26 +365,34 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             }
 
             // Add to cart with S3 URLs
-            const response = await addToCart({
-                productId: matchingProduct.id,
-                quantity,
-                customDesignUrl: s3Keys.length > 0 ? s3Keys : undefined,
-            });
+            const response = await toastPromise(
+                addToCart({
+                    productId: matchingProduct.id,
+                    quantity,
+                    customDesignUrl: s3Keys.length > 0 ? s3Keys : undefined,
+                }),
+                {
+                    loading: 'Adding to cart...',
+                    success: 'Product added to cart successfully!',
+                    error: 'Failed to add product to cart. Please try again.',
+                }
+            );
 
             if (response.success) {
                 // Reset uploaded files after adding to cart
                 setUploadedFiles([]);
                 // Refresh cart to update count
                 await refetchCart();
-                alert('✅ Product added to cart successfully!');
                 // Optionally reload to update UI
-                window.location.reload();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
-                alert(response.error || 'Failed to add product to cart. Please try again.');
+                toastError(response.error || 'Failed to add product to cart. Please try again.');
             }
         } catch (error) {
             console.error('Error adding to cart:', error);
-            alert('Failed to add product to cart. Please try again.');
+            toastError('Failed to add product to cart. Please try again.');
         } finally {
             setAddingToCart(false);
         }
@@ -393,19 +409,19 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
         const missingSpecs = getMissingRequiredSpecs();
         if (missingSpecs.length > 0) {
             const missingNames = missingSpecs.map(spec => spec.name).join(', ');
-            alert(`Please select the following required specifications:\n\n${missingNames}`);
+            toastWarning(`Please select the following required specifications: ${missingNames}`);
             return;
         }
 
         // Check if file is required and uploaded
         if (category?.configuration?.fileUploadRequired && uploadedFiles.length === 0) {
-            alert('Please upload a file to continue.');
+            toastWarning('Please upload a file to continue.');
             return;
         }
 
         // Check if product is out of stock
         if (matchingProduct && matchingProduct.stock <= 0) {
-            alert('This product is out of stock. Please select a different combination or contact us.');
+            toastWarning('This product is out of stock. Please select a different combination or contact us.');
             return;
         }
 
@@ -414,9 +430,9 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             const missingSpecs = getMissingRequiredSpecs();
             if (missingSpecs.length > 0) {
                 const missingNames = missingSpecs.map(spec => spec.name).join(', ');
-                alert(`Please select the following required specifications:\n\n${missingNames}`);
+                toastWarning(`Please select the following required specifications: ${missingNames}`);
             } else {
-                alert('Please select all required specifications to proceed.');
+                toastWarning('Please select all required specifications to proceed.');
             }
             return;
         }
@@ -428,18 +444,25 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             if (uploadedFiles.length > 0) {
                 setUploadingFiles(true);
                 try {
-                    const uploadResponse = await uploadOrderFilesToS3(uploadedFiles);
+                    const uploadResponse = await toastPromise(
+                        uploadOrderFilesToS3(uploadedFiles),
+                        {
+                            loading: 'Uploading files...',
+                            success: 'Files uploaded successfully!',
+                            error: 'Failed to upload files. Please try again.',
+                        }
+                    );
                     if (uploadResponse.success && uploadResponse.data) {
                         s3Keys = uploadResponse.data.files.map(f => f.key);
                     } else {
-                        alert('Failed to upload files. Please try again.');
+                        toastError('Failed to upload files. Please try again.');
                         setBuyNowLoading(false);
                         setUploadingFiles(false);
                         return;
                     }
                 } catch (error) {
                     console.error('Error uploading files:', error);
-                    alert('Failed to upload files. Please try again.');
+                    toastError('Failed to upload files. Please try again.');
                     setBuyNowLoading(false);
                     setUploadingFiles(false);
                     return;
@@ -449,23 +472,32 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             }
 
             // Add to cart with S3 URLs and redirect to checkout
-            const response = await addToCart({
-                productId: matchingProduct.id,
-                quantity,
-                customDesignUrl: s3Keys.length > 0 ? s3Keys : undefined,
-            });
+            const response = await toastPromise(
+                addToCart({
+                    productId: matchingProduct.id,
+                    quantity,
+                    customDesignUrl: s3Keys.length > 0 ? s3Keys : undefined,
+                }),
+                {
+                    loading: 'Processing...',
+                    success: 'Redirecting to checkout...',
+                    error: 'Failed to proceed. Please try again.',
+                }
+            );
 
             if (response.success) {
                 // Reset uploaded files
                 setUploadedFiles([]);
                 // Redirect to checkout
-                router.push('/checkout');
+                setTimeout(() => {
+                    router.push('/checkout');
+                }, 1000);
             } else {
-                alert(response.error || 'Failed to proceed. Please try again.');
+                toastError(response.error || 'Failed to proceed. Please try again.');
             }
         } catch (error) {
             console.error('Error in buy now:', error);
-            alert('Failed to proceed. Please try again.');
+            toastError('Failed to proceed. Please try again.');
         } finally {
             setBuyNowLoading(false);
         }

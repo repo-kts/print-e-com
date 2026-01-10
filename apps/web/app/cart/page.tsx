@@ -7,6 +7,8 @@ import BillingSummary from "../components/BillingSummary";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useCart } from "@/contexts/CartContext";
 import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
+import { toastError } from "@/lib/utils/toast";
+import { useConfirm } from "@/lib/hooks/use-confirm";
 
 function CartPageContent() {
     const {
@@ -21,6 +23,8 @@ function CartPageContent() {
         removeItem,
         refetch,
     } = useCart();
+
+    const { confirm, ConfirmDialog } = useConfirm();
 
     // Calculate MRP (Maximum Retail Price) for cart items
     const mrp = useMemo(() => {
@@ -62,18 +66,24 @@ function CartPageContent() {
         }
         const success = await updateQuantity(id, quantity);
         if (!success) {
-            alert('Failed to update cart item. Please try again.');
+            toastError('Failed to update cart item. Please try again.');
         }
     };
 
     const handleRemoveItem = async (id: string) => {
-        if (!confirm('Are you sure you want to remove this item from your cart?')) {
-            return;
-        }
-        const success = await removeItem(id);
-        if (!success) {
-            alert('Failed to remove item from cart. Please try again.');
-        }
+        const confirmed = await confirm({
+            title: 'Remove Item',
+            description: 'Are you sure you want to remove this item from your cart?',
+            confirmText: 'Remove',
+            cancelText: 'Cancel',
+            variant: 'default',
+            onConfirm: async () => {
+                const success = await removeItem(id);
+                if (!success) {
+                    toastError('Failed to remove item from cart. Please try again.');
+                }
+            },
+        });
     };
 
     const breadcrumbs = [
@@ -83,6 +93,7 @@ function CartPageContent() {
 
     return (
         <div className="min-h-screen py-8">
+            {ConfirmDialog}
             <div className="max-w-7xl mx-auto px-6">
                 {/* Breadcrumbs */}
                 <Breadcrumbs items={breadcrumbs} />

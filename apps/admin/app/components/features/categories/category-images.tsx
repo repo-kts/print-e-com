@@ -20,6 +20,8 @@ import {
 } from '@/lib/api/categories.service';
 import Image from 'next/image';
 import { Trash2, Star, StarOff, GripVertical } from 'lucide-react';
+import { toastPromise } from '@/lib/utils/toast';
+import { useConfirm } from '@/lib/hooks/use-confirm';
 
 interface CategoryImagesProps {
     categoryId: string;
@@ -31,6 +33,7 @@ export function CategoryImages({ categoryId }: CategoryImagesProps) {
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     const [uploadMode, setUploadMode] = useState<'url' | 'file'>('file');
     const [uploading, setUploading] = useState(false);
@@ -150,20 +153,32 @@ export function CategoryImages({ categoryId }: CategoryImagesProps) {
     };
 
     const handleDelete = async (imageId: string) => {
-        if (!confirm('Are you sure you want to delete this image?')) {
-            return;
-        }
-
-        try {
-            setDeleting(imageId);
-            setError(null);
-            await deleteCategoryImageApi(categoryId, imageId);
-            setImages(images.filter((img) => img.id !== imageId));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete image');
-        } finally {
-            setDeleting(null);
-        }
+        const confirmed = await confirm({
+            title: 'Delete Image',
+            description: 'Are you sure you want to delete this image? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'destructive',
+            onConfirm: async () => {
+                try {
+                    setDeleting(imageId);
+                    setError(null);
+                    await toastPromise(
+                        deleteCategoryImageApi(categoryId, imageId),
+                        {
+                            loading: 'Deleting image...',
+                            success: 'Image deleted successfully',
+                            error: 'Failed to delete image',
+                        }
+                    );
+                    setImages(images.filter((img) => img.id !== imageId));
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to delete image');
+                } finally {
+                    setDeleting(null);
+                }
+            },
+        });
     };
 
     const handleUpdateDisplayOrder = async (imageId: string, newOrder: number) => {
@@ -178,236 +193,242 @@ export function CategoryImages({ categoryId }: CategoryImagesProps) {
 
     if (loading) {
         return (
-            <div className="flex min-h-[200px] items-center justify-center">
-                <p className="text-sm text-gray-500">Loading images...</p>
-            </div>
+            <>
+                {ConfirmDialog}
+                <div className="flex min-h-[200px] items-center justify-center">
+                    <p className="text-sm text-gray-500">Loading images...</p>
+                </div>
+            </>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900">Category Images</h2>
-                <p className="mt-1 text-sm text-gray-600">
-                    Upload and manage images for this category. Set a primary image for display in listings.
-                </p>
-            </div>
+        <>
+            {ConfirmDialog}
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Category Images</h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                        Upload and manage images for this category. Set a primary image for display in listings.
+                    </p>
+                </div>
 
-            {error && <Alert variant="error">{error}</Alert>}
+                {error && <Alert variant="error">{error}</Alert>}
 
-            {/* Add Image Form */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Add New Image</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {/* Upload Mode Toggle */}
-                    <div className="mb-4 flex gap-2">
-                        <Button
-                            type="button"
-                            variant={uploadMode === 'file' ? 'default' : 'outline'}
-                            onClick={() => setUploadMode('file')}
-                            size="sm"
-                        >
-                            Upload File
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={uploadMode === 'url' ? 'default' : 'outline'}
-                            onClick={() => setUploadMode('url')}
-                            size="sm"
-                        >
-                            Enter URL
-                        </Button>
-                    </div>
-
-                    {uploadMode === 'file' ? (
-                        <form onSubmit={handleFileUpload} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="image-file">Select Image</Label>
-                                <Input
-                                    id="image-file"
-                                    type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                                    onChange={handleFileChange}
-                                    required
-                                />
-                                {selectedFile && (
-                                    <div className="mt-2 rounded-md border p-2">
-                                        <p className="text-sm text-gray-600">
-                                            Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                                        </p>
-                                    </div>
-                                )}
-                                <p className="text-xs text-gray-500">
-                                    Supported formats: JPG, PNG, WebP, GIF. Max size: 10MB
-                                </p>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="image-alt">Alt Text (optional)</Label>
-                                <Input
-                                    id="image-alt"
-                                    placeholder="Description of the image"
-                                    value={form.alt || ''}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, alt: e.target.value }))}
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="is-primary"
-                                    type="checkbox"
-                                    checked={form.isPrimary}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <Label htmlFor="is-primary">Set as primary image</Label>
-                            </div>
-                            <Button type="submit" isLoading={uploading} disabled={!selectedFile || uploading}>
-                                {uploading ? 'Uploading...' : 'Upload Image'}
+                {/* Add Image Form */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Add New Image</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {/* Upload Mode Toggle */}
+                        <div className="mb-4 flex gap-2">
+                            <Button
+                                type="button"
+                                variant={uploadMode === 'file' ? 'default' : 'outline'}
+                                onClick={() => setUploadMode('file')}
+                                size="sm"
+                            >
+                                Upload File
                             </Button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleUrlSubmit} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="image-url">Image URL</Label>
-                                <Input
-                                    id="image-url"
-                                    type="url"
-                                    placeholder="https://example.com/image.jpg"
-                                    value={form.url || ''}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
-                                    required
-                                />
-                                <p className="text-xs text-gray-500">
-                                    Enter the full URL of the image.
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="image-alt">Alt Text (optional)</Label>
-                                <Input
-                                    id="image-alt"
-                                    placeholder="Description of the image"
-                                    value={form.alt || ''}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, alt: e.target.value }))}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="is-primary-url"
-                                    type="checkbox"
-                                    checked={form.isPrimary}
-                                    onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <Label htmlFor="is-primary-url">Set as primary image</Label>
-                            </div>
-
-                            <Button type="submit" isLoading={saving}>
-                                Add Image
+                            <Button
+                                type="button"
+                                variant={uploadMode === 'url' ? 'default' : 'outline'}
+                                onClick={() => setUploadMode('url')}
+                                size="sm"
+                            >
+                                Enter URL
                             </Button>
-                        </form>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Images Gallery */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Images ({images.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {images.length === 0 ? (
-                        <div className="py-8 text-center text-gray-500">
-                            <p>No images added yet. Add your first image above.</p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {images.map((image, index) => (
-                                <div
-                                    key={image.id || `image-${index}-${image.url || 'temp'}-${index}`}
-                                    className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white"
-                                >
-                                    <div className="relative aspect-video w-full bg-gray-100">
-                                        <Image
-                                            src={image.url}
-                                            alt={image.alt || 'Category image'}
-                                            fill
-                                            className="object-cover"
-                                            unoptimized={image.url?.includes('amazonaws.com') || image.url?.includes('s3.')}
-                                        />
-                                        {image.isPrimary && (
-                                            <div className="absolute top-2 left-2 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white">
-                                                Primary
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-3">
-                                        <p className="text-xs text-gray-500">
-                                            Order: {image.displayOrder} • {image.alt || 'No alt text'}
-                                        </p>
-                                        <div className="mt-2 flex gap-2">
-                                            {!image.isPrimary && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleSetPrimary(image.id)}
-                                                    className="flex-1"
-                                                >
-                                                    <Star className="mr-1 h-3 w-3" />
-                                                    Set Primary
-                                                </Button>
-                                            )}
-                                            {image.isPrimary && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                    className="flex-1"
-                                                >
-                                                    <StarOff className="mr-1 h-3 w-3" />
-                                                    Primary
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleDelete(image.id)}
-                                                isLoading={deleting === image.id}
-                                                className="text-red-600 hover:text-red-700"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
+
+                        {uploadMode === 'file' ? (
+                            <form onSubmit={handleFileUpload} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-file">Select Image</Label>
+                                    <Input
+                                        id="image-file"
+                                        type="file"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                        onChange={handleFileChange}
+                                        required
+                                    />
+                                    {selectedFile && (
+                                        <div className="mt-2 rounded-md border p-2">
+                                            <p className="text-sm text-gray-600">
+                                                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                                            </p>
                                         </div>
-                                        {index > 0 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="mt-1 w-full text-xs"
-                                                onClick={() => handleUpdateDisplayOrder(image.id, image.displayOrder - 1)}
-                                            >
-                                                Move Up
-                                            </Button>
-                                        )}
-                                        {index < images.length - 1 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="mt-1 w-full text-xs"
-                                                onClick={() => handleUpdateDisplayOrder(image.id, image.displayOrder + 1)}
-                                            >
-                                                Move Down
-                                            </Button>
-                                        )}
-                                    </div>
+                                    )}
+                                    <p className="text-xs text-gray-500">
+                                        Supported formats: JPG, PNG, WebP, GIF. Max size: 10MB
+                                    </p>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-alt">Alt Text (optional)</Label>
+                                    <Input
+                                        id="image-alt"
+                                        placeholder="Description of the image"
+                                        value={form.alt || ''}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, alt: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="is-primary"
+                                        type="checkbox"
+                                        checked={form.isPrimary}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <Label htmlFor="is-primary">Set as primary image</Label>
+                                </div>
+                                <Button type="submit" isLoading={uploading} disabled={!selectedFile || uploading}>
+                                    {uploading ? 'Uploading...' : 'Upload Image'}
+                                </Button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleUrlSubmit} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-url">Image URL</Label>
+                                    <Input
+                                        id="image-url"
+                                        type="url"
+                                        placeholder="https://example.com/image.jpg"
+                                        value={form.url || ''}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))}
+                                        required
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Enter the full URL of the image.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-alt">Alt Text (optional)</Label>
+                                    <Input
+                                        id="image-alt"
+                                        placeholder="Description of the image"
+                                        value={form.alt || ''}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, alt: e.target.value }))}
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="is-primary-url"
+                                        type="checkbox"
+                                        checked={form.isPrimary}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, isPrimary: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <Label htmlFor="is-primary-url">Set as primary image</Label>
+                                </div>
+
+                                <Button type="submit" isLoading={saving}>
+                                    Add Image
+                                </Button>
+                            </form>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Images Gallery */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Images ({images.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {images.length === 0 ? (
+                            <div className="py-8 text-center text-gray-500">
+                                <p>No images added yet. Add your first image above.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {images.map((image, index) => (
+                                    <div
+                                        key={image.id || `image-${index}-${image.url || 'temp'}-${index}`}
+                                        className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white"
+                                    >
+                                        <div className="relative aspect-video w-full bg-gray-100">
+                                            <Image
+                                                src={image.url}
+                                                alt={image.alt || 'Category image'}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized={image.url?.includes('amazonaws.com') || image.url?.includes('s3.')}
+                                            />
+                                            {image.isPrimary && (
+                                                <div className="absolute top-2 left-2 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white">
+                                                    Primary
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-3">
+                                            <p className="text-xs text-gray-500">
+                                                Order: {image.displayOrder} • {image.alt || 'No alt text'}
+                                            </p>
+                                            <div className="mt-2 flex gap-2">
+                                                {!image.isPrimary && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleSetPrimary(image.id)}
+                                                        className="flex-1"
+                                                    >
+                                                        <Star className="mr-1 h-3 w-3" />
+                                                        Set Primary
+                                                    </Button>
+                                                )}
+                                                {image.isPrimary && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled
+                                                        className="flex-1"
+                                                    >
+                                                        <StarOff className="mr-1 h-3 w-3" />
+                                                        Primary
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(image.id)}
+                                                    isLoading={deleting === image.id}
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                            {index > 0 && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="mt-1 w-full text-xs"
+                                                    onClick={() => handleUpdateDisplayOrder(image.id, image.displayOrder - 1)}
+                                                >
+                                                    Move Up
+                                                </Button>
+                                            )}
+                                            {index < images.length - 1 && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="mt-1 w-full text-xs"
+                                                    onClick={() => handleUpdateDisplayOrder(image.id, image.displayOrder + 1)}
+                                                >
+                                                    Move Down
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </>
     );
 }
 
