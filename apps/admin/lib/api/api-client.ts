@@ -3,6 +3,8 @@
  * Handles all HTTP requests to the backend API with proper error handling
  */
 
+import { toastError } from '../utils/toast';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1';
 
 export interface ApiError {
@@ -186,8 +188,10 @@ async function fetchAPI<T>(
                     setAuthToken(undefined);
                     if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
                         // Show user-friendly message before redirect
-                        alert(`Session expired or invalid. Please login again.\n\nError: ${errorMessage}`);
-                        window.location.href = '/login';
+                        toastError('Session expired or invalid. Please login again.');
+                        setTimeout(() => {
+                            window.location.href = '/login';
+                        }, 2000);
                     }
                 } else {
                     // This might be an API error that returned 401, not an auth issue

@@ -13,6 +13,7 @@ import { Label } from '@/app/components/ui/label';
 import { Alert } from '@/app/components/ui/alert';
 import { resetUserPassword, suspendUser, activateUser } from '@/lib/api/users.service';
 import { Key, Ban, CheckCircle, AlertTriangle } from 'lucide-react';
+import { toastPromise } from '@/lib/utils/toast';
 
 interface UserSecurityActionsProps {
     userId: string;
@@ -36,10 +37,16 @@ export function UserSecurityActions({ userId, userName, isSuspended, onSuccess }
         setError(null);
 
         try {
-            await resetUserPassword(userId, sendEmail);
+            await toastPromise(
+                resetUserPassword(userId, sendEmail),
+                {
+                    loading: 'Resetting password...',
+                    success: sendEmail ? 'Password reset email sent successfully' : 'Password reset token generated',
+                    error: 'Failed to reset password',
+                }
+            );
             setIsPasswordResetOpen(false);
             onSuccess?.();
-            alert(sendEmail ? 'Password reset email sent successfully' : 'Password reset token generated');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to reset password');
         } finally {

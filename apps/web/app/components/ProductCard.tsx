@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { addToCart } from "@/lib/api/cart";
 import { addToWishlist, removeFromWishlist, checkWishlist } from "@/lib/api/wishlist";
 import { useCart } from "@/contexts/CartContext";
+import { toastError, toastPromise } from "@/lib/utils/toast";
 
 interface ProductCardProps {
     id: string;
@@ -74,26 +75,34 @@ export default function ProductCard({
         setIsAddingToCart(true);
         try {
             console.log('Calling addToCart API with:', { productId: id, quantity: 1 }); // Debug log
-            const response = await addToCart({
-                productId: id,
-                quantity: 1,
-            });
+            const response = await toastPromise(
+                addToCart({
+                    productId: id,
+                    quantity: 1,
+                }),
+                {
+                    loading: 'Adding to cart...',
+                    success: 'Product added to cart successfully!',
+                    error: 'Failed to add to cart. Please try again.',
+                }
+            );
 
             console.log('Add to cart response:', response); // Debug log
 
             if (response.success) {
                 // Show success feedback and reload to update UI
                 console.log('Added to cart successfully');
-                alert('✅ Product added to cart successfully!');
-                window.location.reload();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 console.error('Add to cart failed:', response.error);
-                alert(response.error || 'Failed to add to cart');
+                toastError(response.error || 'Failed to add to cart');
             }
         } catch (err) {
             console.error('Error adding to cart:', err);
             const errorMessage = err instanceof Error ? err.message : 'Failed to add to cart. Please try again.';
-            alert(errorMessage);
+            toastError(errorMessage);
         } finally {
             setIsAddingToCart(false);
         }
@@ -111,23 +120,33 @@ export default function ProductCard({
         setIsLoadingWishlist(true);
         try {
             if (isFavorite) {
-                const response = await removeFromWishlist(id);
+                const response = await toastPromise(
+                    removeFromWishlist(id),
+                    {
+                        loading: 'Removing from wishlist...',
+                        success: 'Removed from wishlist',
+                        error: 'Failed to remove from wishlist',
+                    }
+                );
                 if (response.success) {
                     setIsFavorite(false);
-                } else {
-                    alert(response.error || 'Failed to remove from wishlist');
                 }
             } else {
-                const response = await addToWishlist(id);
+                const response = await toastPromise(
+                    addToWishlist(id),
+                    {
+                        loading: 'Adding to wishlist...',
+                        success: 'Added to wishlist',
+                        error: 'Failed to add to wishlist',
+                    }
+                );
                 if (response.success) {
                     setIsFavorite(true);
-                } else {
-                    alert(response.error || 'Failed to add to wishlist');
                 }
             }
         } catch (err) {
             console.error('Error toggling wishlist:', err);
-            alert('Failed to update wishlist. Please try again.');
+            toastError('Failed to update wishlist. Please try again.');
         } finally {
             setIsLoadingWishlist(false);
         }

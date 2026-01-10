@@ -13,6 +13,8 @@ import { Alert } from '@/app/components/ui/alert';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { uploadProductImageApi, uploadProductImagesApi, deleteProductImageApi, type ProductImage } from '@/lib/api/products.service';
 import Image from 'next/image';
+import { useConfirm } from '@/lib/hooks/use-confirm';
+import { toastPromise } from '@/lib/utils/toast';
 
 interface ImageUploadProps {
     productId: string;
@@ -27,6 +29,7 @@ export function ProductImageUpload({ productId, images, onImagesChange }: ImageU
     const [imageUrl, setImageUrl] = useState('');
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -89,16 +92,28 @@ export function ProductImageUpload({ productId, images, onImagesChange }: ImageU
     };
 
     const handleDelete = async (imageId: string) => {
-        if (!confirm('Are you sure you want to delete this image?')) {
-            return;
-        }
-
-        try {
-            await deleteProductImageApi(imageId);
-            onImagesChange(images.filter(img => img.id !== imageId));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete image');
-        }
+        const confirmed = await confirm({
+            title: 'Delete Image',
+            description: 'Are you sure you want to delete this image? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'destructive',
+            onConfirm: async () => {
+                try {
+                    await toastPromise(
+                        deleteProductImageApi(imageId),
+                        {
+                            loading: 'Deleting image...',
+                            success: 'Image deleted successfully',
+                            error: 'Failed to delete image',
+                        }
+                    );
+                    onImagesChange(images.filter(img => img.id !== imageId));
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to delete image');
+                }
+            },
+        });
     };
 
     const handleSetPrimary = async (imageId: string) => {

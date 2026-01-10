@@ -42,6 +42,7 @@ import {
     User
 } from 'lucide-react';
 import Link from 'next/link';
+import { toastError, toastSuccess, toastWarning, toastPromise } from '@/lib/utils/toast';
 
 export function OrderDetail({ orderId }: { orderId: string }) {
     const router = useRouter();
@@ -77,8 +78,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
             await updateOrderStatus(orderId, { status: newStatus, comment });
             await loadOrder();
             setStatusModalOpen(false);
+            toastSuccess('Order status updated successfully');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to update order status');
+            toastError(err instanceof Error ? err.message : 'Failed to update order status');
         }
     };
 
@@ -88,8 +90,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
             await markAsShipped(orderId, { trackingNumber, carrier });
             await loadOrder();
             setShippingModalOpen(false);
+            toastSuccess('Order marked as shipped');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to mark as shipped');
+            toastError(err instanceof Error ? err.message : 'Failed to mark as shipped');
         }
     };
 
@@ -98,8 +101,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         try {
             await markAsDelivered(orderId, { notes });
             await loadOrder();
+            toastSuccess('Order marked as delivered');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to mark as delivered');
+            toastError(err instanceof Error ? err.message : 'Failed to mark as delivered');
         }
     };
 
@@ -113,13 +117,13 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 printWindow.print();
             }
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to load invoice');
+            toastError(err instanceof Error ? err.message : 'Failed to load invoice');
         }
     };
 
     const copyOrderId = () => {
         navigator.clipboard.writeText(orderId);
-        alert('Order ID copied to clipboard');
+        toastSuccess('Order ID copied to clipboard');
     };
 
     if (isLoading) {
@@ -818,8 +822,9 @@ function PaymentModal({
                 reference: reference || undefined,
             });
             onPaid();
+            toastSuccess('Payment marked as paid');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to mark payment as paid');
+            toastError(err instanceof Error ? err.message : 'Failed to mark payment as paid');
         } finally {
             setIsSubmitting(false);
         }
@@ -881,7 +886,7 @@ function RefundModal({
 
     const handleSubmit = async () => {
         if (!reason.trim()) {
-            alert('Please provide a refund reason');
+            toastWarning('Please provide a refund reason');
             return;
         }
         try {
@@ -891,8 +896,9 @@ function RefundModal({
                 reason,
             });
             onRefund();
+            toastSuccess('Refund processed successfully');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to process refund');
+            toastError(err instanceof Error ? err.message : 'Failed to process refund');
         } finally {
             setIsSubmitting(false);
         }

@@ -37,6 +37,7 @@ import { UserFilters } from './user-filters';
 import { BulkActions } from './bulk-actions';
 import { EditUserModal } from './edit-user-modal';
 import { UserAnalytics } from './user-analytics';
+import { toastError, toastSuccess } from '@/lib/utils/toast';
 type ViewMode = 'table' | 'card' | 'list';
 
 export function UsersList() {
@@ -171,8 +172,9 @@ export function UsersList() {
                 dateFrom: filters.dateFrom,
                 dateTo: filters.dateTo,
             });
+            toastSuccess('Users exported successfully');
         } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to export users');
+            toastError(err instanceof Error ? err.message : 'Failed to export users');
         } finally {
             setIsLoading(false);
         }

@@ -5,6 +5,8 @@ import { MapPin, Plus, Edit2, Trash2, Check, X } from "lucide-react";
 import { useAddresses } from "@/hooks/addresses/useAddresses";
 import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
 import { CreateAddressData, Address, UpdateAddressData } from "@/lib/api/addresses";
+import { toastError, toastSuccess, toastPromise } from "@/lib/utils/toast";
+import { useConfirm } from "@/lib/hooks/use-confirm";
 
 function AddressesPageContent() {
     const { addresses, user, loading, error, createAddress, updateAddress, deleteAddress, setDefaultAddress } = useAddresses();
@@ -19,6 +21,7 @@ function AddressesPageContent() {
         isDefault: false,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     const handleEdit = (address: Address) => {
         setEditingId(address.id);
@@ -44,19 +47,34 @@ function AddressesPageContent() {
     };
 
     const handleSetDefault = async (id: string) => {
-        const success = await setDefaultAddress(id);
-        if (!success) {
-            alert("Failed to set default address. Please try again.");
-        }
+        const success = await toastPromise(
+            setDefaultAddress(id),
+            {
+                loading: 'Setting default address...',
+                success: 'Default address updated',
+                error: 'Failed to set default address. Please try again.',
+            }
+        );
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this address?")) {
-            const success = await deleteAddress(id);
-            if (!success) {
-                alert("Failed to delete address. Please try again.");
-            }
-        }
+        const confirmed = await confirm({
+            title: 'Delete Address',
+            description: 'Are you sure you want to delete this address? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'destructive',
+            onConfirm: async () => {
+                const success = await toastPromise(
+                    deleteAddress(id),
+                    {
+                        loading: 'Deleting address...',
+                        success: 'Address deleted successfully',
+                        error: 'Failed to delete address. Please try again.',
+                    }
+                );
+            },
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -73,15 +91,27 @@ function AddressesPageContent() {
                     zipCode: formData.zipCode,
                     country: formData.country,
                 };
-                const success = await updateAddress(editingId, updateData);
+                const success = await toastPromise(
+                    updateAddress(editingId, updateData),
+                    {
+                        loading: 'Updating address...',
+                        success: 'Address updated successfully',
+                        error: 'Failed to update address. Please try again.',
+                    }
+                );
                 if (success) {
                     handleCancelEdit();
-                } else {
-                    alert("Failed to update address. Please try again.");
                 }
             } else {
                 // Create new address
-                const success = await createAddress(formData);
+                const success = await toastPromise(
+                    createAddress(formData),
+                    {
+                        loading: 'Creating address...',
+                        success: 'Address created successfully',
+                        error: 'Failed to create address. Please try again.',
+                    }
+                );
                 if (success) {
                     setShowAddForm(false);
                     setFormData({
@@ -91,12 +121,10 @@ function AddressesPageContent() {
                         zipCode: "",
                         country: "IN",
                     });
-                } else {
-                    alert("Failed to create address. Please try again.");
                 }
             }
         } catch (err) {
-            alert("An error occurred. Please try again.");
+            toastError("An error occurred. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -104,36 +132,43 @@ function AddressesPageContent() {
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center py-12">
-                <BarsSpinner />
-            </div>
+            <>
+                {ConfirmDialog}
+                <div className="flex-1 flex items-center justify-center py-12">
+                    <BarsSpinner />
+                </div>
+            </>
         );
     }
 
     if (error && addresses.length === 0) {
         return (
-            <div className="flex-1">
-                <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-8 sm:p-12 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                        <MapPin className="text-red-600 w-8 h-8" />
+            <>
+                {ConfirmDialog}
+                <div className="flex-1">
+                    <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-8 sm:p-12 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                            <MapPin className="text-red-600 w-8 h-8" />
+                        </div>
+                        <p className="text-lg font-hkgb text-gray-900 mb-2">Error loading addresses</p>
+                        <p className="text-gray-600 text-sm mb-6 max-w-md mx-auto">
+                            {error}
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="inline-block px-6 py-3 bg-[#008ECC] text-white rounded-xl hover:bg-[#0077B3] transition-colors font-hkgb text-sm cursor-pointer"
+                        >
+                            Retry
+                        </button>
                     </div>
-                    <p className="text-lg font-hkgb text-gray-900 mb-2">Error loading addresses</p>
-                    <p className="text-gray-600 text-sm mb-6 max-w-md mx-auto">
-                        {error}
-                    </p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="inline-block px-6 py-3 bg-[#008ECC] text-white rounded-xl hover:bg-[#0077B3] transition-colors font-hkgb text-sm cursor-pointer"
-                    >
-                        Retry
-                    </button>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
         <>
+            {ConfirmDialog}
             {/* Main Content */}
             <div className="flex-1">
                 {/* Header */}

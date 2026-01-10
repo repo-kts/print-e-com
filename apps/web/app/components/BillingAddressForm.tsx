@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAddresses } from "@/hooks/addresses/useAddresses";
 import { CreateAddressData } from "@/lib/api/addresses";
 import { MapPin, Plus } from "lucide-react";
+import { toastWarning, toastError, toastSuccess, toastPromise } from "@/lib/utils/toast";
 
 interface BillingAddressFormProps {
     selectedAddressId: string | null;
@@ -78,7 +79,7 @@ export default function BillingAddressForm({
 
         // Validate required fields
         if (!formData.street || !formData.city || !formData.state || !formData.zipCode) {
-            alert("Please fill in all required fields");
+            toastWarning("Please fill in all required fields");
             return;
         }
 
@@ -88,7 +89,14 @@ export default function BillingAddressForm({
         setPreviousAddressCount(addresses.length);
 
         try {
-            const success = await createAddress(formData);
+            const success = await toastPromise(
+                createAddress(formData),
+                {
+                    loading: 'Creating address...',
+                    success: 'Address created successfully!',
+                    error: 'Failed to create address. Please try again.',
+                }
+            );
             if (success) {
                 // Refetch addresses to get the newly created one with its ID
                 await refetch();
@@ -106,11 +114,9 @@ export default function BillingAddressForm({
 
                 // The useEffect above will handle selecting the new address
             } else {
-                alert("Failed to create address. Please try again.");
                 setPendingIsDefault(false);
             }
         } catch (err) {
-            alert("An error occurred. Please try again.");
             setPendingIsDefault(false);
         } finally {
             setIsSubmitting(false);
@@ -142,11 +148,10 @@ export default function BillingAddressForm({
                         {addresses.map((address) => (
                             <label
                                 key={address.id}
-                                className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
-                                    selectedAddressId === address.id
-                                        ? "border-blue-500 bg-blue-50"
-                                        : "border-gray-200 hover:border-gray-300"
-                                }`}
+                                className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${selectedAddressId === address.id
+                                    ? "border-blue-500 bg-blue-50"
+                                    : "border-gray-200 hover:border-gray-300"
+                                    }`}
                             >
                                 <input
                                     type="radio"
@@ -314,7 +319,7 @@ export default function BillingAddressForm({
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            className="flex-1 px-6 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? "Creating..." : "Create Address"}
                         </button>

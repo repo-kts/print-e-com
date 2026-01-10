@@ -361,8 +361,8 @@ function OrderDetailsPageContent({
                                                     <div className="relative z-10 shrink-0">
                                                         <div
                                                             className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${isActive
-                                                                    ? "bg-[#008ECC]"
-                                                                    : "bg-gray-200"
+                                                                ? "bg-[#008ECC]"
+                                                                : "bg-gray-200"
                                                                 }`}
                                                         >
                                                             {isActive && (
@@ -375,8 +375,8 @@ function OrderDetailsPageContent({
                                                     <div className="flex-1 pb-6">
                                                         <div
                                                             className={`font-medium mb-1 text-sm sm:text-base ${isActive
-                                                                    ? "text-gray-900 font-hkgb"
-                                                                    : "text-gray-500"
+                                                                ? "text-gray-900 font-hkgb"
+                                                                : "text-gray-500"
                                                                 }`}
                                                         >
                                                             {historyItem.status}

@@ -14,6 +14,7 @@ import { useCheckout } from "@/hooks/checkout/useCheckout";
 import { BarsSpinner } from "@/app/components/shared/BarsSpinner";
 import { createRazorpayOrderFromCart, verifyRazorpayPayment } from "@/lib/api/payments";
 import CheckoutFilesReview from "../components/CheckoutFilesReview";
+import { toastWarning, toastError, toastSuccess, toastPromise } from "@/lib/utils/toast";
 
 function CheckoutPageContent() {
     const {
@@ -103,12 +104,12 @@ function CheckoutPageContent() {
 
     const handlePay = async () => {
         if (!selectedAddressId) {
-            alert("Please select a delivery address before proceeding to payment.");
+            toastWarning("Please select a delivery address before proceeding to payment.");
             return;
         }
 
         if (cartItems.length === 0) {
-            alert("Your cart is empty.");
+            toastWarning("Your cart is empty.");
             return;
         }
 
@@ -152,14 +153,21 @@ function CheckoutPageContent() {
                 handler: async (response: any) => {
                     try {
                         // 3) Verify payment and create order in DB
-                        const verifyResp = await verifyRazorpayPayment({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                        });
+                        const verifyResp = await toastPromise(
+                            verifyRazorpayPayment({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                            }),
+                            {
+                                loading: 'Verifying payment...',
+                                success: 'Payment verified successfully!',
+                                error: 'Payment verification failed. Please contact support if amount was deducted.',
+                            }
+                        );
 
                         if (!verifyResp.success || !verifyResp.data || !verifyResp.data.verified) {
-                            alert("Payment verification failed. If amount was deducted, please contact support.");
+                            toastError("Payment verification failed. If amount was deducted, please contact support.");
                             return;
                         }
 
@@ -168,10 +176,13 @@ function CheckoutPageContent() {
                         // Files are already uploaded to S3 and stored in cart items
                         // Order items are created with S3 URLs from cart items during payment verification
                         // Just redirect to order page
-                        window.location.href = `/orders/${orderId}`;
+                        toastSuccess('Order placed successfully!');
+                        setTimeout(() => {
+                            window.location.href = `/orders/${orderId}`;
+                        }, 1500);
                     } catch (err) {
                         console.error("Failed to verify payment", err);
-                        alert("Payment verification failed. If amount was deducted, please contact support.");
+                        toastError("Payment verification failed. If amount was deducted, please contact support.");
                     }
                 },
                 theme: {
@@ -184,7 +195,7 @@ function CheckoutPageContent() {
         } catch (err) {
             console.error("Payment error", err);
             const message = err instanceof Error ? err.message : "Payment failed. Please try again.";
-            alert(message);
+            toastError(message);
         } finally {
             setIsPaying(false);
         }
@@ -225,7 +236,7 @@ function CheckoutPageContent() {
                         <p className="text-gray-600 text-lg mb-4">Your cart is empty</p>
                         <a
                             href="/products"
-                            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                            className="inline-block px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                         >
                             Continue Shopping
                         </a>
