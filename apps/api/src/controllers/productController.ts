@@ -90,9 +90,9 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
  *                       type: array
  *                       items:
  *                         type: object
-                         properties:
-                           id:
-                             type: string
+ *                         properties:
+ *                           id:
+ *                             type: string
                            name:
                              type: string
                            slug:

@@ -25,7 +25,7 @@ interface OrderItem {
     size?: string;
     color?: string;
     image?: string;
-    customDesignUrl?: string;
+    customDesignUrl?: string[]; // Array of S3 URLs
     variant?: string;
 }
 
@@ -258,9 +258,8 @@ function OrderDetailsPageContent({
                             </p>
                         </div>
                         <span
-                            className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
-                                statusColors[order.status]
-                            }`}
+                            className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${statusColors[order.status]
+                                }`}
                         >
                             {order.status}
                         </span>
@@ -351,7 +350,7 @@ function OrderDetailsPageContent({
                                             const isActive =
                                                 isLast ||
                                                 order.status ===
-                                                    historyItem.status;
+                                                historyItem.status;
 
                                             return (
                                                 <div
@@ -361,11 +360,10 @@ function OrderDetailsPageContent({
                                                     {/* Timeline Dot */}
                                                     <div className="relative z-10 shrink-0">
                                                         <div
-                                                            className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
-                                                                isActive
+                                                            className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${isActive
                                                                     ? "bg-[#008ECC]"
                                                                     : "bg-gray-200"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {isActive && (
                                                                 <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
@@ -376,11 +374,10 @@ function OrderDetailsPageContent({
                                                     {/* Timeline Content */}
                                                     <div className="flex-1 pb-6">
                                                         <div
-                                                            className={`font-medium mb-1 text-sm sm:text-base ${
-                                                                isActive
+                                                            className={`font-medium mb-1 text-sm sm:text-base ${isActive
                                                                     ? "text-gray-900 font-hkgb"
                                                                     : "text-gray-500"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {historyItem.status}
                                                         </div>
