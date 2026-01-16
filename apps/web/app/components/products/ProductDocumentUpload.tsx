@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Upload, File, AlertTriangle, X, Image as ImageIcon, FileText, Loader2 } from "lucide-react";
 import { uploadOrderFilesToS3, deleteOrderFile } from "@/lib/api/uploads";
 import { toastError, toastSuccess } from "@/lib/utils/toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { redirectToLoginWithReturn } from "@/lib/utils/auth-redirect";
 
 export interface FileDetail {
     file: File;
@@ -32,6 +34,7 @@ export default function ProductDocumentUpload({
     maxFiles,
     className = "",
 }: ProductDocumentUploadProps) {
+    const { isAuthenticated } = useAuth();
     const [uploadedFiles, setUploadedFiles] = useState<FileDetail[]>([]);
     const [totalQuantity, setTotalQuantity] = useState<number>(0);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -205,6 +208,16 @@ export default function ProductDocumentUpload({
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) {
+            return;
+        }
+
+        // Check authentication first
+        if (!isAuthenticated) {
+            redirectToLoginWithReturn();
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
             return;
         }
 

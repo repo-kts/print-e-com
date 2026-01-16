@@ -18,6 +18,7 @@ import { ProductData, BreadcrumbItem } from '@/types';
 import { Option } from '@/types';
 import { uploadOrderFilesToS3 } from '@/lib/api/uploads';
 import { toastWarning, toastError, toastSuccess, toastPromise } from '@/lib/utils/toast';
+import { redirectToLoginWithReturn } from '@/lib/utils/auth-redirect';
 
 interface DynamicServicePageProps {
     params: Promise<{ categorySlug: string }>;
@@ -413,7 +414,7 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
     const handleAddToCart = async () => {
         // Check authentication
         if (!isAuthenticated) {
-            router.push('/auth/login');
+            redirectToLoginWithReturn();
             return;
         }
 
@@ -507,7 +508,7 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
     const handleBuyNow = async () => {
         // Check authentication
         if (!isAuthenticated) {
-            router.push('/auth/login');
+            redirectToLoginWithReturn();
             return;
         }
 
