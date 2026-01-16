@@ -36,6 +36,7 @@ export default function ProductDocumentUpload({
     const [totalQuantity, setTotalQuantity] = useState<number>(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [removingFileId, setRemovingFileId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const uploadAbortControllersRef = useRef<Map<string, AbortController>>(new Map());
     const pendingCallbackRef = useRef<{ files: File[]; quantity: number; details: FileDetail[] } | null>(null);
@@ -340,6 +341,9 @@ export default function ProductDocumentUpload({
         const fileToRemove = uploadedFiles.find((fd) => fd.id === fileId);
         if (!fileToRemove) return;
 
+        // Set removing state to show loader
+        setRemovingFileId(fileId);
+
         // If file is currently uploading, cancel the upload
         if (fileToRemove.uploadStatus === 'uploading' && fileToRemove.uploadAbortController) {
             fileToRemove.uploadAbortController.abort();
@@ -370,6 +374,9 @@ export default function ProductDocumentUpload({
         if (onQuantityChange) {
             onQuantityChange(updatedQuantity);
         }
+
+        // Clear removing state
+        setRemovingFileId(null);
     };
 
     const imageCount = uploadedFiles.filter(f => f.type === 'image').length;
@@ -458,39 +465,24 @@ export default function ProductDocumentUpload({
                                             </p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleRemove(fileDetail.id)}
-                                        className="p-1 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
-                                        type="button"
-                                    >
-                                        <X size={18} />
-                                    </button>
+                                    {removingFileId === fileDetail.id ? (
+                                        <div className="p-1 shrink-0">
+                                            <Loader2 size={18} className="animate-spin text-blue-600" />
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleRemove(fileDetail.id)}
+                                            className="p-1 text-gray-400 hover:text-red-600 transition-colors cursor-pointer shrink-0"
+                                            type="button"
+                                            disabled={removingFileId !== null}
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Page Count Display */}
-                        {totalQuantity > 0 && (
-                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-semibold text-blue-900">Total Page Count</p>
-                                    <p className="text-lg font-bold text-blue-900">{totalQuantity}</p>
-                                </div>
-                                <div className="text-xs text-blue-700">
-                                    {imageCount > 0 && (
-                                        <span>
-                                            {imageCount} image{imageCount !== 1 ? 's' : ''} ({imageCount} page{imageCount !== 1 ? 's' : ''})
-                                        </span>
-                                    )}
-                                    {imageCount > 0 && pdfCount > 0 && ' + '}
-                                    {pdfCount > 0 && (
-                                        <span>
-                                            {pdfCount} PDF{pdfCount !== 1 ? 's' : ''} ({pdfPageCount} page{pdfPageCount !== 1 ? 's' : ''})
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
