@@ -227,12 +227,200 @@ export const getAvailableCoupons = async (req: Request, res: Response, next: Nex
                 discountValue: true,
                 minPurchaseAmount: true,
                 maxDiscountAmount: true,
+                validFrom: true,
                 validUntil: true,
+                applicableTo: true,
+                usageLimit: true,
+                usageLimitPerUser: true,
+                _count: {
+                    select: {
+                        offerProducts: true,
+                        usages: true,
+                    },
+                },
             },
             orderBy: { createdAt: "desc" },
         });
 
-        return sendSuccess(res, coupons);
+        // Convert Decimal to Number for JSON response and add totalUses
+        const couponsWithNumbers = coupons.map((coupon) => ({
+            ...coupon,
+            discountValue: Number(coupon.discountValue),
+            minPurchaseAmount: coupon.minPurchaseAmount ? Number(coupon.minPurchaseAmount) : null,
+            maxDiscountAmount: coupon.maxDiscountAmount ? Number(coupon.maxDiscountAmount) : null,
+            totalUses: coupon._count.usages,
+        }));
+
+        return sendSuccess(res, couponsWithNumbers);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get a single coupon by ID (public)
+ * @route GET /api/v1/coupons/:id
+ */
+export const getCouponById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+
+        const coupon = await prisma.coupon.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                description: true,
+                discountType: true,
+                discountValue: true,
+                minPurchaseAmount: true,
+                maxDiscountAmount: true,
+                validFrom: true,
+                validUntil: true,
+                isActive: true,
+                applicableTo: true,
+                usageLimit: true,
+                usageLimitPerUser: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        offerProducts: true,
+                        usages: true,
+                    },
+                },
+            },
+        });
+
+        if (!coupon) {
+            throw new NotFoundError("Coupon not found");
+        }
+
+        // Convert Decimal to Number for JSON response and add totalUses
+        const couponWithNumbers = {
+            ...coupon,
+            discountValue: Number(coupon.discountValue),
+            minPurchaseAmount: coupon.minPurchaseAmount ? Number(coupon.minPurchaseAmount) : null,
+            maxDiscountAmount: coupon.maxDiscountAmount ? Number(coupon.maxDiscountAmount) : null,
+            totalUses: coupon._count.usages,
+        };
+
+        return sendSuccess(res, couponWithNumbers);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get products for a specific coupon
+ * @route GET /api/v1/coupons/:id/products
+ */
+export const getCouponProductsPublic = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+
+        // Verify coupon exists
+        const coupon = await prisma.coupon.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                discountType: true,
+                discountValue: true,
+                maxDiscountAmount: true,
+                applicableTo: true,
+            },
+        });
+
+        if (!coupon) {
+            throw new NotFoundError("Coupon not found");
+        }
+
+        // Get all products linked to this coupon
+        const couponProducts = await prisma.offerProduct.findMany({
+            where: {
+                couponId: id,
+                product: {
+                    isActive: true,
+                },
+            },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        shortDescription: true,
+                        basePrice: true,
+                        sellingPrice: true,
+                        mrp: true,
+                        stock: true,
+                        isFeatured: true,
+                        isNewArrival: true,
+                        isBestSeller: true,
+                        rating: true,
+                        totalSold: true,
+                        createdAt: true,
+                        category: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true,
+                            },
+                        },
+                        images: {
+                            where: { isPrimary: true },
+                            take: 1,
+                            select: {
+                                id: true,
+                                url: true,
+                                alt: true,
+                            },
+                            orderBy: { displayOrder: "asc" },
+                        },
+                    },
+                },
+            },
+        });
+
+        // Filter out null products and calculate discounted prices
+        const productsWithDiscount = couponProducts
+            .filter((cp) => cp.product)
+            .map((cp) => {
+                const product = cp.product!;
+                const basePrice = Number(product.sellingPrice || product.basePrice);
+                let discountedPrice = basePrice;
+
+                // Calculate discount based on coupon discount type
+                if (coupon.discountType === "PERCENTAGE") {
+                    const discountAmount = (basePrice * Number(coupon.discountValue)) / 100;
+                    discountedPrice = basePrice - discountAmount;
+
+                    // Apply max discount if specified
+                    if (coupon.maxDiscountAmount) {
+                        const maxDiscount = Number(coupon.maxDiscountAmount);
+                        if (discountAmount > maxDiscount) {
+                            discountedPrice = basePrice - maxDiscount;
+                        }
+                    }
+                } else if (coupon.discountType === "FIXED") {
+                    discountedPrice = basePrice - Number(coupon.discountValue);
+                    if (discountedPrice < 0) {
+                        discountedPrice = 0;
+                    }
+                }
+
+                return {
+                    ...product,
+                    basePrice: Number(product.basePrice),
+                    sellingPrice: Number(product.sellingPrice),
+                    mrp: Number(product.mrp),
+                    discountedPrice: Math.max(0, discountedPrice),
+                    savings: basePrice - discountedPrice,
+                };
+            });
+
+        return sendSuccess(res, productsWithDiscount);
     } catch (error) {
         next(error);
     }

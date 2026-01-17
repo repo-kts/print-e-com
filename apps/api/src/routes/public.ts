@@ -10,6 +10,11 @@ import {
     calculateCategoryPricePublic,
     getProductsBySpecifications,
 } from "../controllers/categoryController.js";
+import {
+    getOffers,
+    getOfferById,
+    getOfferProducts,
+} from "../controllers/offerController.js";
 
 const router: IRouter = Router();
 
@@ -25,6 +30,14 @@ router.post("/categories/:slug/calculate-price", calculateCategoryPricePublic);
 router.get("/products", getProducts);
 router.get("/products/:id", getProduct);
 router.get("/search", searchProducts);
+
+/**
+ * Public Offers Routes
+ * Routes for browsing offers and offer products
+ */
+router.get("/offers", getOffers);
+router.get("/offers/:id", getOfferById);
+router.get("/offers/:id/products", getOfferProducts);
 
 export default router;
 
