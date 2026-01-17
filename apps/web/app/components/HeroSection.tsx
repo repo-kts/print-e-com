@@ -21,7 +21,7 @@ export default function HeroSection() {
     };
 
     return (
-        <section className="h-[450px] md:h-[500px] bg-white border-t border-gray-100 w-full py-3 md:py-6 flex items-center justify-center overflow-hidden">
+        <section className="h-[450px] md:h-[500px] bg-white w-full py-3 md:py-6 flex items-center justify-center overflow-hidden">
             <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 h-full">
                 {/* Background Image Overlay */}
                 <div className="relative w-full h-full rounded-xl md:rounded-2xl flex items-center justify-center">

@@ -6,7 +6,7 @@ import CouponCard from "../components/offers/OfferCard";
 import { BarsSpinner } from "../components/shared/BarsSpinner";
 import { useCoupons } from "@/lib/hooks/use-coupons";
 
-type FilterType = "all" | "products" | "categories";
+type FilterType = "all" | "products" | "categories"; 
 
 function OffersPageChild() {
     const searchParams = useSearchParams();

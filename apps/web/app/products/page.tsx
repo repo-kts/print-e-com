@@ -1,25 +1,25 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo, Suspense, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ProductCard from "../components/ProductCard";
+import ProductCardList from "../components/ProductCardList";
 import ProductFilters from "../components/ProductFilters";
 import Pagination from "../components/Pagination";
 import { BarsSpinner } from "../components/shared/BarsSpinner";
-import { getProducts, type Product, type ProductListParams } from "../../lib/api/products";
+import { useProducts } from "@/lib/hooks/use-products";
+import { type ProductListParams } from "../../lib/api/products";
 import { Filter, X, Grid, List } from "lucide-react";
 
 const PRODUCTS_PER_PAGE = 20;
 
 function ProductsPageChild() {
+    const router = useRouter();
     const searchParams = useSearchParams();
 
     // State
-    const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all fetched products
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
-    const [isFilterOpen, setIsFilterOpen] = useState(false); 3
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [sortBy, setSortBy] = useState<string>("featured");
 
@@ -34,126 +34,83 @@ function ProductsPageChild() {
     const searchQuery = searchParams.get("search") || "";
     const categoryParam = searchParams.get("category") || "";
 
-    // Fetch products from API
-    useEffect(() => {
-        const fetchProducts = async () => {
-            setLoading(true);
-            setError(null);
-
-            try {
-                // Build API params - increase limit to get more products for client-side filtering
-                const params: ProductListParams = {
-                    page: 1, // Always fetch from page 1 for client-side filtering
-                    limit: 1000, // Fetch more products to allow proper client-side filtering
-                };
-
-                // Add search if present
-                if (searchQuery) {
-                    params.search = searchQuery;
-                }
-
-                // Add category if present
-                if (categoryParam) {
-                    params.category = categoryParam;
-                }
-
-                // Add price range filter
-                if (selectedPriceRanges.length > 0) {
-                    // Parse price ranges - handle multiple ranges by taking the union
-                    let minPrice: number | undefined;
-                    let maxPrice: number | undefined;
-
-                    selectedPriceRanges.forEach((rangeStr) => {
-                        if (rangeStr.includes("+")) {
-                            // Handle "₹5000+" case - minimum price only
-                            const min = parseInt(rangeStr.replace(/₹/g, "").replace("+", "").trim()) || 0;
-                            if (minPrice === undefined || min < minPrice) minPrice = min;
-                            // No max for "+" ranges
-                        } else {
-                            // Handle "₹0-₹500" case
-                            const cleanRange = rangeStr.replace(/₹/g, "").trim();
-                            const range = cleanRange.split("-");
-                            const rangeMin = parseInt(range[0]?.trim() || "0") || 0;
-                            const rangeMax = parseInt(range[1]?.trim() || "0") || 0;
-
-                            // For union of ranges, we need min of all mins and max of all maxes
-                            if (minPrice === undefined || rangeMin < minPrice) minPrice = rangeMin;
-                            if (maxPrice === undefined || rangeMax > maxPrice) maxPrice = rangeMax;
-                        }
-                    });
-
-                    if (minPrice !== undefined) params.minPrice = minPrice;
-                    if (maxPrice !== undefined) params.maxPrice = maxPrice;
-                }
-
-                // Don't apply category/collection filters at API level when doing client-side filtering
-                // This allows multiple selections to work properly with OR logic
-                // Only apply if single selection (for optimization)
-                if (selectedTags.length === 1) {
-                    params.category = selectedTags[0];
-                }
-
-                // Only apply collection filter if single selection
-                if (selectedCollections.length === 1 && !selectedCollections.includes("All products")) {
-                    const collection = selectedCollections[0];
-                    if (collection === "Best sellers") {
-                        params.isBestSeller = true;
-                    } else if (collection === "New arrivals") {
-                        params.isNewArrival = true;
-                    } else if (collection === "Featured") {
-                        params.isFeatured = true;
-                    }
-                }
-
-                // Call API
-                const response = await getProducts(params);
-
-                if (response.success && response.data) {
-                    // Store all products - filtering will be done in useMemo
-                    setAllProducts(response.data.products);
-                } else {
-                    setError(response.error || "Failed to load products");
-                    setAllProducts([]);
-                }
-            } catch (err: any) {
-                console.error("Error fetching products:", err);
-                setError(err.message || "Failed to load products");
-            } finally {
-                setLoading(false);
-            }
+    // Build API params for TanStack Query
+    const apiParams = useMemo(() => {
+        const params: ProductListParams = {
+            page: 1,
+            limit: 1000, // Fetch more for client-side filtering
         };
 
-        fetchProducts();
-    }, [
-        searchQuery,
-        categoryParam,
-        selectedPriceRanges, // Only fetch when price ranges change (affects API call)
-    ]);
+        if (searchQuery) params.search = searchQuery;
+        if (categoryParam) params.category = categoryParam;
 
-    // Memoized filtered products - prevents re-rendering filters
+        // Add price range filter
+        if (selectedPriceRanges.length > 0) {
+            let minPrice: number | undefined;
+            let maxPrice: number | undefined;
+
+            selectedPriceRanges.forEach((rangeStr) => {
+                if (rangeStr.includes("+")) {
+                    const min = parseInt(rangeStr.replace(/₹/g, "").replace("+", "").trim()) || 0;
+                    if (minPrice === undefined || min < minPrice) minPrice = min;
+                } else {
+                    const cleanRange = rangeStr.replace(/₹/g, "").trim();
+                    const range = cleanRange.split("-");
+                    const rangeMin = parseInt(range[0]?.trim() || "0") || 0;
+                    const rangeMax = parseInt(range[1]?.trim() || "0") || 0;
+
+                    if (minPrice === undefined || rangeMin < minPrice) minPrice = rangeMin;
+                    if (maxPrice === undefined || rangeMax > maxPrice) maxPrice = rangeMax;
+                }
+            });
+
+            if (minPrice !== undefined) params.minPrice = minPrice;
+            if (maxPrice !== undefined) params.maxPrice = maxPrice;
+        }
+
+        if (selectedTags.length === 1) {
+            params.category = selectedTags[0];
+        }
+
+        if (selectedCollections.length === 1 && !selectedCollections.includes("All products")) {
+            const collection = selectedCollections[0];
+            if (collection === "Best sellers") params.isBestSeller = true;
+            else if (collection === "New arrivals") params.isNewArrival = true;
+            else if (collection === "Featured") params.isFeatured = true;
+        }
+
+        return params;
+    }, [searchQuery, categoryParam, selectedPriceRanges, selectedTags, selectedCollections]);
+
+    // Fetch products with TanStack Query
+    const { data: productsResponse, isLoading, error, refetch } = useProducts(apiParams);
+
+    const allProducts = useMemo(() => {
+        return productsResponse?.success && productsResponse.data
+            ? productsResponse.data.products
+            : [];
+    }, [productsResponse]);
+
+    // Memoized filtered products
     const filteredProducts = useMemo(() => {
         let products = [...allProducts];
 
-        // Filter by multiple categories (OR logic - product matches ANY selected category)
         if (selectedTags.length > 0) {
             products = products.filter((product) =>
                 product.category?.name && selectedTags.includes(product.category.name)
             );
         }
 
-        // Filter by size in specifications (OR logic - product matches ANY selected size)
         if (selectedSizes.length > 0) {
             products = products.filter((product) => {
                 if (!product.specifications || product.specifications.length === 0) {
                     return false;
                 }
-                // Check if any specification key or value matches ANY selected size
                 return product.specifications.some((spec) => {
                     const specKey = (spec.key || "").toLowerCase();
                     const specValue = (spec.value || "").toLowerCase();
                     return selectedSizes.some((size) => {
                         const sizeLower = size.toLowerCase();
-                        // Check if size appears in key (e.g., "Size: A4") or value (e.g., "A4")
                         return (specKey.includes("size") && specValue.includes(sizeLower)) ||
                             specValue === sizeLower ||
                             specValue.includes(sizeLower);
@@ -162,7 +119,6 @@ function ProductsPageChild() {
             });
         }
 
-        // Filter by multiple collections (OR logic - product matches ANY selected collection)
         if (selectedCollections.length > 0 && !selectedCollections.includes("All products")) {
             products = products.filter((product) => {
                 return selectedCollections.some((collection) => {
@@ -175,7 +131,7 @@ function ProductsPageChild() {
         }
 
         return products;
-    }, [allProducts, categoryParam, selectedTags, selectedSizes, selectedCollections]);
+    }, [allProducts, selectedTags, selectedSizes, selectedCollections]);
 
     // Memoized sorted products
     const sortedProducts = useMemo(() => {
@@ -206,7 +162,6 @@ function ProductsPageChild() {
                 });
             case "featured":
             default:
-                // Featured first, then by creation date
                 return products.sort((a, b) => {
                     if (a.isFeatured && !b.isFeatured) return -1;
                     if (!a.isFeatured && b.isFeatured) return 1;
@@ -226,7 +181,7 @@ function ProductsPageChild() {
     const totalProducts = sortedProducts.length;
     const totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
 
-    // Reset to page 1 when filters change (but not when products are just filtered)
+    // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [
@@ -264,21 +219,42 @@ function ProductsPageChild() {
         };
     }, [isFilterOpen]);
 
-    const handleAddToCart = (productId: string) => {
-        // Handle add to cart logic (will be implemented in Phase 2)
-        console.log("Add to cart:", productId);
-    };
-
-    const handleClearAllFilters = () => {
+    // Clear all filters and URL params
+    const handleClearAllFilters = useCallback(() => {
         setSelectedSizes([]);
         setSelectedColors([]);
         setSelectedPriceRanges([]);
         setSelectedCollections([]);
         setSelectedTags([]);
+
+        // Clear URL query parameters
+        const url = new URL(window.location.href);
+        url.searchParams.delete('search');
+        url.searchParams.delete('category');
+        router.push(url.pathname + (url.search ? url.search : ''));
+    }, [router]);
+
+    // Clear search query from URL
+    const handleClearSearch = useCallback(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('search');
+        router.push(url.pathname + (url.search ? url.search : ''));
+    }, [router]);
+
+    // Clear category from URL
+    const handleClearCategory = useCallback(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('category');
+        router.push(url.pathname + (url.search ? url.search : ''));
+    }, [router]);
+
+    const handleAddToCart = (productId: string) => {
+        // Handle add to cart logic
+        console.log("Add to cart:", productId);
     };
 
     // Loading state
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="min-h-screen bg-white py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -291,16 +267,18 @@ function ProductsPageChild() {
     }
 
     // Error state
-    if (error) {
+    if (error || (productsResponse && !productsResponse.success)) {
         return (
             <div className="min-h-screen bg-white py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="text-center py-12">
                         <div className="text-red-600 text-lg mb-4">⚠️ Error Loading Products</div>
-                        <p className="text-gray-600 mb-4">{error}</p>
+                        <p className="text-gray-600 mb-4">
+                            {error?.message || productsResponse?.error || "Failed to load products"}
+                        </p>
                         <button
-                            onClick={() => window.location.reload()}
-                            className="px-6 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            onClick={() => refetch()}
+                            className="px-6 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                         >
                             Retry
                         </button>
@@ -324,7 +302,7 @@ function ProductsPageChild() {
                         <button
                             id="filter-button"
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                         >
                             <Filter size={18} />
                             <span>Filters</span>
@@ -356,10 +334,8 @@ function ProductsPageChild() {
                                 </span>
                             </div>
                             <button
-                                onClick={() => {
-                                    window.location.href = '/products';
-                                }}
-                                className="flex items-center gap-1 px-2 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                onClick={handleClearSearch}
+                                className="flex items-center gap-1 px-2 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                             >
                                 <X size={16} />
                             </button>
@@ -385,13 +361,13 @@ function ProductsPageChild() {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={handleClearAllFilters}
-                                            className="text-sm text-blue-600 hover:text-blue-700 px-3 py-1 hover:bg-blue-50 rounded"
+                                            className="text-sm text-blue-600 hover:text-blue-700 px-3 py-1 hover:bg-blue-50 rounded cursor-pointer"
                                         >
                                             Clear All
                                         </button>
                                         <button
                                             onClick={() => setIsFilterOpen(false)}
-                                            className="p-2 hover:bg-gray-100 rounded-lg"
+                                            className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
                                         >
                                             <X size={20} />
                                         </button>
@@ -418,7 +394,7 @@ function ProductsPageChild() {
                                 <div className="p-4 border-t">
                                     <button
                                         onClick={() => setIsFilterOpen(false)}
-                                        className="w-full py-3 bg-[#008ECC] text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                        className="w-full py-3 bg-[#008ECC] text-white rounded-lg font-medium hover:bg-blue-700 transition-colors cursor-pointer"
                                     >
                                         Apply Filters
                                         <span className="ml-2 text-sm bg-white/30 px-2 py-0.5 rounded">
@@ -477,10 +453,8 @@ function ProductsPageChild() {
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            window.location.href = '/products';
-                                        }}
-                                        className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                        onClick={handleClearSearch}
+                                        className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                                     >
                                         <X size={16} />
                                         Clear search
@@ -510,7 +484,7 @@ function ProductsPageChild() {
                                     selectedCollections.length > 0) && (
                                         <button
                                             onClick={handleClearAllFilters}
-                                            className="lg:hidden text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1 border border-blue-200 rounded-lg hover:bg-blue-50"
+                                            className="lg:hidden text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 px-3 py-1 border border-blue-200 rounded-lg hover:bg-blue-50 cursor-pointer"
                                         >
                                             <X size={14} />
                                             Clear filters
@@ -524,13 +498,13 @@ function ProductsPageChild() {
                                 <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
                                     <button
                                         onClick={() => setViewMode("grid")}
-                                        className={`p-2 rounded ${viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"}`}
+                                        className={`p-2 rounded cursor-pointer ${viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-200"}`}
                                     >
                                         <Grid size={18} />
                                     </button>
                                     <button
                                         onClick={() => setViewMode("list")}
-                                        className={`p-2 rounded ${viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-gray-200"}`}
+                                        className={`p-2 rounded cursor-pointer ${viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-gray-200"}`}
                                     >
                                         <List size={18} />
                                     </button>
@@ -540,7 +514,7 @@ function ProductsPageChild() {
                                 <select
                                     value={sortBy}
                                     onChange={(e) => setSortBy(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
                                 >
                                     <option value="featured">Featured</option>
                                     <option value="newest">Newest First</option>
@@ -561,12 +535,8 @@ function ProductsPageChild() {
                                         <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">
                                             Category: {categoryParam}
                                             <button
-                                                onClick={() => {
-                                                    const url = new URL(window.location.href);
-                                                    url.searchParams.delete('category');
-                                                    window.location.href = url.toString();
-                                                }}
-                                                className="ml-1 hover:text-blue-900"
+                                                onClick={handleClearCategory}
+                                                className="ml-1 hover:text-blue-900 cursor-pointer"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -577,7 +547,7 @@ function ProductsPageChild() {
                                             Size: {size}
                                             <button
                                                 onClick={() => setSelectedSizes(prev => prev.filter(s => s !== size))}
-                                                className="ml-1 hover:text-blue-900"
+                                                className="ml-1 hover:text-blue-900 cursor-pointer"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -588,7 +558,7 @@ function ProductsPageChild() {
                                             Price: {range}
                                             <button
                                                 onClick={() => setSelectedPriceRanges(prev => prev.filter(r => r !== range))}
-                                                className="ml-1 hover:text-blue-900"
+                                                className="ml-1 hover:text-blue-900 cursor-pointer"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -599,7 +569,7 @@ function ProductsPageChild() {
                                             Category: {tag}
                                             <button
                                                 onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
-                                                className="ml-1 hover:text-blue-900"
+                                                className="ml-1 hover:text-blue-900 cursor-pointer"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -610,7 +580,7 @@ function ProductsPageChild() {
                                             {collection}
                                             <button
                                                 onClick={() => setSelectedCollections(prev => prev.filter(c => c !== collection))}
-                                                className="ml-1 hover:text-blue-900"
+                                                className="ml-1 hover:text-blue-900 cursor-pointer"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -621,7 +591,7 @@ function ProductsPageChild() {
                                         selectedCollections.length > 0 || categoryParam) && (
                                             <button
                                                 onClick={handleClearAllFilters}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full border border-gray-300"
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full border border-gray-300 cursor-pointer"
                                             >
                                                 <X size={14} />
                                                 Clear All
@@ -637,17 +607,31 @@ function ProductsPageChild() {
                                     ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-4 lg:gap-5"
                                     : "space-y-4"
                                 }>
-                                    {paginatedProducts.map((product) => (
-                                        <ProductCard
-                                            key={product.id}
-                                            id={product.id}
-                                            name={product.name}
-                                            category={product.category?.name || "Unknown Category"}
-                                            price={Number(product.sellingPrice || product.basePrice)}
-                                            image={product.images?.[0]?.url}
-                                            onAddToCart={handleAddToCart}
-                                        />
-                                    ))}
+                                    {paginatedProducts.map((product) =>
+                                        viewMode === "grid" ? (
+                                            <ProductCard
+                                                key={product.id}
+                                                id={product.id}
+                                                name={product.name}
+                                                category={product.category?.name || "Unknown Category"}
+                                                price={Number(product.sellingPrice || product.basePrice)}
+                                                image={product.images?.[0]?.url}
+                                                onAddToCart={handleAddToCart}
+                                            />
+                                        ) : (
+                                            <ProductCardList
+                                                key={product.id}
+                                                id={product.id}
+                                                name={product.name}
+                                                category={product.category?.name || "Unknown Category"}
+                                                price={Number(product.sellingPrice || product.basePrice)}
+                                                image={product.images?.[0]?.url}
+                                                description={product.shortDescription || product.description}
+                                                rating={product.rating}
+                                                onAddToCart={handleAddToCart}
+                                            />
+                                        )
+                                    )}
                                 </div>
 
                                 {/* Pagination */}
@@ -690,18 +674,14 @@ function ProductsPageChild() {
                                             </p>
                                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                                 <button
-                                                    onClick={() => {
-                                                        window.location.href = '/products';
-                                                    }}
-                                                    className="px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                                    onClick={() => router.push('/products')}
+                                                    className="px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors font-medium cursor-pointer"
                                                 >
                                                     Browse All Products
                                                 </button>
                                                 <button
-                                                    onClick={() => {
-                                                        window.location.href = '/';
-                                                    }}
-                                                    className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                                    onClick={() => router.push('/')}
+                                                    className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium cursor-pointer"
                                                 >
                                                     Go to Homepage
                                                 </button>
@@ -717,7 +697,7 @@ function ProductsPageChild() {
                                             </p>
                                             <button
                                                 onClick={handleClearAllFilters}
-                                                className="px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                                className="px-6 py-3 bg-[#008ECC] text-white rounded-lg hover:bg-blue-700 transition-colors font-medium cursor-pointer"
                                             >
                                                 Clear All Filters
                                             </button>
