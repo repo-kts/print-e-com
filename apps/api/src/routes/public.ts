@@ -9,6 +9,7 @@ import {
     getCategoryBySlug,
     calculateCategoryPricePublic,
     getProductsBySpecifications,
+    getCategoryAddonsPublic,
 } from "../controllers/categoryController.js";
 import {
     getOffers,
@@ -27,6 +28,7 @@ router.get("/categories", getCategories);
 router.get("/categories/:slug", getCategoryBySlug);
 router.get("/categories/:slug/products", getProductsBySpecifications);
 router.post("/categories/:slug/calculate-price", calculateCategoryPricePublic);
+router.get("/categories/:slug/addons", getCategoryAddonsPublic);
 router.get("/products", getProducts);
 router.get("/products/:id", getProduct);
 router.get("/search", searchProducts);

@@ -43,6 +43,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toastError, toastSuccess, toastWarning, toastPromise } from '@/lib/utils/toast';
+import Image from 'next/image';
+import { imageLoader } from '@/lib/utils/image-loader';
 
 export function OrderDetail({ orderId, initialOrder }: { orderId: string; initialOrder?: Order }) {
     const router = useRouter();
@@ -390,11 +392,50 @@ export function OrderDetail({ orderId, initialOrder }: { orderId: string; initia
                                     <div key={item.id || index} className="flex gap-4 border-b pb-6 last:border-0">
                                         {item.product?.images?.[0] && (
                                             <div className="w-24 h-24 rounded border overflow-hidden bg-gray-100 shrink-0">
-                                                <img
+                                                <Image
                                                     src={item.product.images[0].url}
                                                     alt={item.product.name}
                                                     className="w-full h-full object-cover"
+                                                    width={96}
+                                                    height={96}
+                                                    loader={imageLoader}
                                                 />
+                                            </div>
+                                        )}
+                                        {/* Pricing metadata (pages, copies, addons, breakdown) */}
+                                        {item.metadata?.pageCount && (
+                                            <div className="mt-2 p-2 bg-gray-50 rounded text-xs space-y-1">
+                                                <p>
+                                                    <strong>Pages:</strong> {item.metadata.pageCount}
+                                                </p>
+                                                {item.metadata.copies && (
+                                                    <p>
+                                                        <strong>Copies:</strong> {item.metadata.copies}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {item.metadata?.selectedAddons && item.metadata.selectedAddons.length > 0 && (
+                                            <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                                <p className="text-xs font-semibold text-blue-900 mb-1">Applied Addons:</p>
+                                                {item.metadata.selectedAddons.map((addonId, idx) => (
+                                                    <p key={idx} className="text-[11px] text-blue-700 break-all">
+                                                        {addonId}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {item.metadata?.priceBreakdown && item.metadata.priceBreakdown.length > 0 && (
+                                            <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                                                <p className="text-xs font-semibold text-green-900 mb-1">Price Breakdown:</p>
+                                                {item.metadata.priceBreakdown.map((pbItem, idx) => (
+                                                    <div key={idx} className="flex justify-between text-[11px] text-green-700">
+                                                        <span>{pbItem.label}</span>
+                                                        <span>₹{pbItem.value.toFixed(2)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                         <div className="flex-1">

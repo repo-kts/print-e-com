@@ -10,7 +10,15 @@ import { PageCountDisplay } from '@/app/components/services/PageCountDisplay';
 import { CopiesSelector } from '@/app/components/services/CopiesSelector';
 import { QuantityWithCopiesSelector } from '@/app/components/services/QuantityWithCopiesSelector';
 import { FileDetail } from '@/app/components/products/ProductDocumentUpload';
-import { getCategoryBySlug, calculateCategoryPrice, getProductsBySpecifications, type Category, type CategorySpecification } from '@/lib/api/categories';
+import {
+    getCategoryBySlug,
+    calculateCategoryPrice,
+    getProductsBySpecifications,
+    getCategoryAddons,
+    type Category,
+    type CategorySpecification,
+    type CategoryAddon,
+} from '@/lib/api/categories';
 import { addToCart } from '@/lib/api/cart';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -82,6 +90,7 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
     const [checkingProduct, setCheckingProduct] = useState(false);
     const [addingToCart, setAddingToCart] = useState(false);
     const [buyNowLoading, setBuyNowLoading] = useState(false);
+    const [availableAddons, setAvailableAddons] = useState<CategoryAddon[]>([]);
 
     // Fetch category data on mount
     useEffect(() => {
@@ -100,6 +109,14 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
                         defaults[spec.slug] = spec.options[0]?.value || '';
                     });
                 setSelectedSpecifications(defaults);
+
+                // Fetch ADDON rules for this category (used to display page range variations)
+                try {
+                    const addons = await getCategoryAddons(categorySlug);
+                    setAvailableAddons(addons || []);
+                } catch (addonsError) {
+                    console.warn('Failed to load category addons', addonsError);
+                }
             } catch (err: any) {
                 setError(err.message || 'Failed to load category');
             } finally {
@@ -115,16 +132,47 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
 
         try {
             setCalculatingPrice(true);
+
+            // Log the combination being used for price calculation
+            const combinationLog: Record<string, string> = {};
+            Object.entries(selectedSpecifications).forEach(([slug, value]) => {
+                const spec = category.specifications.find(s => s.slug === slug);
+                if (spec) {
+                    const option = spec.options.find(o => o.value === value);
+                    combinationLog[spec.name] = option?.label || value || 'Not selected';
+                } else {
+                    combinationLog[slug] = String(value);
+                }
+            });
+
+            console.log('🔍 Price Calculation - Using combination:', {
+                specifications: combinationLog,
+                quantity: totalQuantity,
+                selectedSpecifications: selectedSpecifications,
+            });
+
             // Always use totalQuantity which already includes copies multiplication
             const result = await calculateCategoryPrice(categorySlug, {
                 specifications: selectedSpecifications,
                 quantity: totalQuantity,
+                pageCount: pageCount > 0 ? pageCount : undefined,
+                copies: pageCount > 0 ? copies : undefined,
             });
+
+            console.log('💰 Price Calculation Result:', {
+                totalPrice: result.totalPrice,
+                breakdown: result.breakdown,
+            });
+
             setPriceBreakdown(result.breakdown);
             setTotalPrice(result.totalPrice);
-            // Calculate base price per unit from total price and quantity
-            if (totalQuantity > 0) {
-                setBasePricePerUnit(result.totalPrice / totalQuantity);
+
+            // Derive base price per unit only from the base price line, not including addons
+            const baseLine = result.breakdown.find((item) =>
+                item.label.toLowerCase().startsWith('base')
+            );
+            if (baseLine && totalQuantity > 0) {
+                setBasePricePerUnit(baseLine.value / totalQuantity);
             } else {
                 setBasePricePerUnit(0);
             }
@@ -143,7 +191,7 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
         } finally {
             setCalculatingPrice(false);
         }
-    }, [category, categorySlug, selectedSpecifications, totalQuantity]);
+    }, [category, categorySlug, selectedSpecifications, totalQuantity, pageCount, copies]);
 
     const checkForProduct = useCallback(async () => {
         if (!category) return;
@@ -232,7 +280,14 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
     // Handle specification selection change
     const handleSpecificationChange = (specSlug: string, value: string) => {
         setSelectedSpecifications(prev => {
-            const updated = { ...prev, [specSlug]: value };
+            const updated = { ...prev };
+
+            // If value is empty string, remove the specification (for "None" option)
+            if (value === '' || value === 'none') {
+                delete updated[specSlug];
+            } else {
+                updated[specSlug] = value;
+            }
 
             // Clear dependent specifications when parent changes
             if (category) {
@@ -403,18 +458,9 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
             return false;
         }
 
-        // Check if product exists (matching product found)
-        if (!matchingProduct?.id) {
-            return false;
-        }
-
-        // Check if out of stock
-        if (matchingProduct.stock <= 0) {
-            return false;
-        }
-
+        // At this point, all mandatory fields are filled
         return true;
-    }, [category, selectedSpecifications, uploadedFiles, matchingProduct]);
+    }, [category, selectedSpecifications, uploadedFiles, isSpecificationVisible]);
 
     const handleAddToCart = async () => {
         // Check authentication
@@ -591,6 +637,8 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
                 product: matchingProduct,
                 price: totalPrice,
                 priceBreakdown,
+                pageCount: pageCount > 0 ? pageCount : undefined,
+                copies: pageCount > 0 ? copies : undefined,
             };
 
             sessionStorage.setItem('buyNow', JSON.stringify(buyNowData));
@@ -635,7 +683,7 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
     const visibleSpecifications = category.specifications
         .filter(isSpecificationVisible)
         .sort((a, b) => a.displayOrder - b.displayOrder);
-
+    // console.log("-------visibleSpec", visibleSpecifications)
     return (
         <div className="min-h-screen bg-white">
             <ProductPageTemplate
@@ -687,6 +735,15 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
 
                         // Handle different specification types
                         if (spec.type === 'SELECT' || spec.type === 'MULTI_SELECT') {
+                            const selectedValue = selectedSpecifications[spec.slug];
+                            const matchingAddons =
+                                availableAddons.length > 0 && selectedValue
+                                    ? availableAddons.filter((addon) => {
+                                        const specValues = addon.specificationValues || {};
+                                        return specValues[spec.slug] === selectedValue;
+                                    })
+                                    : [];
+
                             return (
                                 <div key={spec.id} className="space-y-2">
                                     <label htmlFor={`spec-${spec.slug}`} className="block text-sm font-medium text-gray-700 font-hkgb">
@@ -696,14 +753,19 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
                                     <div className="relative">
                                         <select
                                             id={`spec-${spec.slug}`}
-                                            value={selectedSpecifications[spec.slug] || ''}
+                                            value={selectedValue || ''}
                                             onChange={(e) => handleSpecificationChange(spec.slug, e.target.value)}
                                             className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008ECC] focus:border-transparent bg-white text-gray-900 text-sm sm:text-base appearance-none cursor-pointer"
                                             required={spec.isRequired}
                                         >
-                                            <option value="" disabled>
-                                                Select {spec.name}
+                                            <option value="" disabled={spec.isRequired}>
+                                                {spec.isRequired ? `Select ${spec.name}` : `Select ${spec.name} (Optional)`}
                                             </option>
+                                            {!spec.isRequired && (
+                                                <option value="">
+                                                    None (Clear selection)
+                                                </option>
+                                            )}
                                             {availableOptions.map((option) => (
                                                 <option
                                                     key={option.id}
@@ -717,6 +779,22 @@ export default function DynamicServicePage({ params }: DynamicServicePageProps) 
                                         </select>
                                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                                     </div>
+
+                                    {matchingAddons.length > 0 && (
+                                        <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                            <p className="text-xs font-semibold text-blue-900 mb-2">Page Range Pricing:</p>
+                                            {matchingAddons.map((addon) => {
+                                                const min = addon.minQuantity ?? 0;
+                                                const max = addon.maxQuantity ?? '∞';
+                                                const price = addon.priceModifier != null ? Number(addon.priceModifier) : 0;
+                                                return (
+                                                    <p key={addon.id} className="text-xs text-blue-700">
+                                                        {min}-{max} pages → ₹{price}
+                                                    </p>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         } else if (spec.type === 'NUMBER') {

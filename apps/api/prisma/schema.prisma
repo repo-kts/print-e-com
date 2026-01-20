@@ -424,6 +424,7 @@ model OrderItem {
   price           Decimal  @db.Decimal(10, 2) // Price at time of order
   customDesignUrl String[] @default([]) // Array of S3 URLs for multiple files
   customText      String?
+  metadata        Json?    // Additional pricing metadata (pageCount, copies, addons, breakdown)
   createdAt       DateTime @default(now())
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)

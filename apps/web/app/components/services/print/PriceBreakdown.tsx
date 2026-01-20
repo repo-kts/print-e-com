@@ -33,6 +33,10 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
     const calculatedQuantity = pageCount && copies ? pageCount * copies : quantity;
     const calculatedTotal = showDetailedCalculation ? basePrice * calculatedQuantity : total;
 
+    const addonItems = items.filter((item) =>
+        item.label.toLowerCase().startsWith('addon')
+    );
+
     return (
         <div className={cn('space-y-4', className)}>
             <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
@@ -91,6 +95,25 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                                 {currency}{calculatedTotal.toFixed(2)}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Addon lines (if any) */}
+                {addonItems.length > 0 && (
+                    <div className="pb-3 border-t border-gray-100 pt-3 space-y-1">
+                        {addonItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs">
+                                <div className="text-gray-700">
+                                    {item.label}
+                                    {item.description && (
+                                        <span className="text-gray-500"> – {item.description}</span>
+                                    )}
+                                </div>
+                                <div className="font-medium text-gray-900">
+                                    {currency}{item.value.toFixed(2)}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 

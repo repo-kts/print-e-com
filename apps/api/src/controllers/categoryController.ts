@@ -628,7 +628,7 @@ export const calculateCategoryPrice = async (
 ) => {
     try {
         const { id } = req.params;
-        const { specifications, quantity } = req.body;
+        const { specifications, quantity, pageCount, copies } = req.body;
 
         if (!specifications || typeof specifications !== "object") {
             throw new ValidationError("Specifications object is required");
@@ -638,12 +638,32 @@ export const calculateCategoryPrice = async (
             throw new ValidationError("Quantity must be at least 1");
         }
 
+        if (pageCount != null && (pageCount < 1 || !Number.isInteger(pageCount))) {
+            throw new ValidationError("pageCount must be a positive integer");
+        }
+        if (copies != null && (copies < 1 || !Number.isInteger(copies))) {
+            throw new ValidationError("copies must be a positive integer");
+        }
+        if (pageCount != null && copies != null) {
+            const expectedQuantity = pageCount * copies;
+            if (Math.abs(quantity - expectedQuantity) > 0.01) {
+                throw new ValidationError("Quantity must equal pageCount × copies");
+            }
+        }
+
         const category = await prisma.category.findUnique({
             where: { id },
             include: {
                 pricingRules: {
                     where: { isActive: true },
                     orderBy: { priority: "desc" },
+                },
+                specifications: {
+                    include: {
+                        options: {
+                            where: { isActive: true },
+                        },
+                    },
                 },
             },
         });
@@ -652,9 +672,25 @@ export const calculateCategoryPrice = async (
             throw new NotFoundError("Category not found");
         }
 
+        // Sanitize specification values against category specifications/options
+        for (const [slug, value] of Object.entries(specifications)) {
+            const spec = category.specifications.find((s) => s.slug === slug);
+            if (!spec) {
+                throw new ValidationError(`Invalid specification: ${slug}`);
+            }
+            if (spec.type === "SELECT" || spec.type === "MULTI_SELECT" || spec.type === "BOOLEAN") {
+                const stringValue = String(value);
+                const optionExists = spec.options.some((opt) => opt.value === stringValue);
+                if (!optionExists) {
+                    throw new ValidationError(`Invalid value for specification ${slug}`);
+                }
+            }
+        }
+
         // Price calculation logic
         let totalPrice = 0;
         const breakdown: Array<{ label: string; value: number }> = [];
+        let baseApplied = false;
 
         // Match pricing rules based on specification values
         for (const rule of category.pricingRules) {
@@ -669,36 +705,69 @@ export const calculateCategoryPrice = async (
                 }
             }
 
-            if (matches) {
-                if (rule.ruleType === "BASE_PRICE" || rule.ruleType === "SPECIFICATION_COMBINATION") {
-                    const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
-                    const finalPrice = rule.quantityMultiplier ? basePrice * quantity : basePrice;
-                    totalPrice += finalPrice;
-                    breakdown.push({
-                        label: `Base price (${rule.ruleType})`,
-                        value: finalPrice,
-                    });
-                } else if (rule.ruleType === "ADDON") {
-                    const modifier = rule.priceModifier ? Number(rule.priceModifier) : 0;
-                    const finalPrice = rule.quantityMultiplier ? modifier * quantity : modifier;
-                    totalPrice += finalPrice;
-                    breakdown.push({
-                        label: "Addon",
-                        value: finalPrice,
-                    });
-                } else if (rule.ruleType === "QUANTITY_TIER") {
-                    if (
-                        (!rule.minQuantity || quantity >= rule.minQuantity) &&
-                        (!rule.maxQuantity || quantity <= rule.maxQuantity)
-                    ) {
-                        const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
-                        const finalPrice = basePrice * quantity;
-                        totalPrice += finalPrice;
-                        breakdown.push({
-                            label: `Quantity tier (${rule.minQuantity || 0}-${rule.maxQuantity || "∞"})`,
-                            value: finalPrice,
-                        });
+            if (!matches) continue;
+
+            if (rule.ruleType === "BASE_PRICE" || rule.ruleType === "SPECIFICATION_COMBINATION") {
+                if (baseApplied) {
+                    continue;
+                }
+                const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
+                const finalPrice = rule.quantityMultiplier ? basePrice * quantity : basePrice;
+                totalPrice += finalPrice;
+                baseApplied = true;
+                breakdown.push({
+                    label: "Base Price",
+                    value: finalPrice,
+                });
+            } else if (rule.ruleType === "ADDON") {
+                const hasPageRange = rule.minQuantity != null || rule.maxQuantity != null;
+
+                if (hasPageRange) {
+                    const effectivePages =
+                        pageCount != null ? pageCount * (copies != null ? copies : 1) : null;
+                    if (effectivePages == null) {
+                        continue;
                     }
+                    const inRange =
+                        (rule.minQuantity == null || effectivePages >= rule.minQuantity) &&
+                        (rule.maxQuantity == null || effectivePages <= rule.maxQuantity);
+                    if (!inRange) {
+                        continue;
+                    }
+                }
+
+                const modifier = rule.priceModifier ? Number(rule.priceModifier) : 0;
+                const copiesForMultiplier = copies || 1;
+                const finalPrice = rule.quantityMultiplier ? modifier * copiesForMultiplier : modifier;
+                totalPrice += finalPrice;
+
+                const rangeLabel =
+                    hasPageRange
+                        ? ` (${rule.minQuantity ?? 0}-${rule.maxQuantity ?? "∞"} pages`
+                        : "";
+                const copiesLabel =
+                    rule.quantityMultiplier && copiesForMultiplier > 1
+                        ? (rangeLabel ? `) × ${copiesForMultiplier} copies` : ` × ${copiesForMultiplier} copies`)
+                        : rangeLabel
+                            ? ")"
+                            : "";
+
+                breakdown.push({
+                    label: `Addon${rangeLabel}${copiesLabel}`,
+                    value: finalPrice,
+                });
+            } else if (rule.ruleType === "QUANTITY_TIER") {
+                if (
+                    (!rule.minQuantity || quantity >= rule.minQuantity) &&
+                    (!rule.maxQuantity || quantity <= rule.maxQuantity)
+                ) {
+                    const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
+                    const finalPrice = basePrice * quantity;
+                    totalPrice += finalPrice;
+                    breakdown.push({
+                        label: `Quantity tier (${rule.minQuantity || 0}-${rule.maxQuantity || "∞"})`,
+                        value: finalPrice,
+                    });
                 }
             }
         }
@@ -867,6 +936,46 @@ export const getCategoryBySlug = async (
 };
 
 /**
+ * Get ADDON pricing rules for a category (public)
+ */
+export const getCategoryAddonsPublic = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { slug } = req.params;
+
+        const category = await prisma.category.findUnique({
+            where: {
+                slug,
+                isActive: true,
+            },
+        });
+
+        if (!category) {
+            throw new NotFoundError("Category not found");
+        }
+
+        const addons = await prisma.categoryPricingRule.findMany({
+            where: {
+                categoryId: category.id,
+                isActive: true,
+                ruleType: "ADDON",
+            },
+            orderBy: [
+                { priority: "desc" },
+                { createdAt: "asc" },
+            ],
+        });
+
+        return sendSuccess(res, addons);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * Calculate price for a category based on specification selections (public endpoint)
  */
 export const calculateCategoryPricePublic = async (
@@ -876,7 +985,7 @@ export const calculateCategoryPricePublic = async (
 ) => {
     try {
         const { slug } = req.params;
-        const { specifications, quantity } = req.body;
+        const { specifications, quantity, pageCount, copies } = req.body;
 
         if (!specifications || typeof specifications !== "object") {
             throw new ValidationError("Specifications object is required");
@@ -884,6 +993,19 @@ export const calculateCategoryPricePublic = async (
 
         if (!quantity || quantity < 1) {
             throw new ValidationError("Quantity must be at least 1");
+        }
+
+        if (pageCount != null && (pageCount < 1 || !Number.isInteger(pageCount))) {
+            throw new ValidationError("pageCount must be a positive integer");
+        }
+        if (copies != null && (copies < 1 || !Number.isInteger(copies))) {
+            throw new ValidationError("copies must be a positive integer");
+        }
+        if (pageCount != null && copies != null) {
+            const expectedQuantity = pageCount * copies;
+            if (Math.abs(quantity - expectedQuantity) > 0.01) {
+                throw new ValidationError("Quantity must equal pageCount × copies");
+            }
         }
 
         const category = await prisma.category.findUnique({
@@ -896,6 +1018,13 @@ export const calculateCategoryPricePublic = async (
                     where: { isActive: true },
                     orderBy: { priority: "desc" },
                 },
+                specifications: {
+                    include: {
+                        options: {
+                            where: { isActive: true },
+                        },
+                    },
+                },
             },
         });
 
@@ -903,9 +1032,25 @@ export const calculateCategoryPricePublic = async (
             throw new NotFoundError("Category not found");
         }
 
+        // Sanitize specification values against category specifications/options
+        for (const [slugKey, value] of Object.entries(specifications)) {
+            const spec = category.specifications.find((s) => s.slug === slugKey);
+            if (!spec) {
+                throw new ValidationError(`Invalid specification: ${slugKey}`);
+            }
+            if (spec.type === "SELECT" || spec.type === "MULTI_SELECT" || spec.type === "BOOLEAN") {
+                const stringValue = String(value);
+                const optionExists = spec.options.some((opt) => opt.value === stringValue);
+                if (!optionExists) {
+                    throw new ValidationError(`Invalid value for specification ${slugKey}`);
+                }
+            }
+        }
+
         // Price calculation logic
         let totalPrice = 0;
         const breakdown: Array<{ label: string; value: number }> = [];
+        let baseApplied = false;
 
         // Match pricing rules based on specification values
         for (const rule of category.pricingRules) {
@@ -920,36 +1065,69 @@ export const calculateCategoryPricePublic = async (
                 }
             }
 
-            if (matches) {
-                if (rule.ruleType === "BASE_PRICE" || rule.ruleType === "SPECIFICATION_COMBINATION") {
-                    const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
-                    const finalPrice = rule.quantityMultiplier ? basePrice * quantity : basePrice;
-                    totalPrice += finalPrice;
-                    breakdown.push({
-                        label: `Base price`,
-                        value: finalPrice,
-                    });
-                } else if (rule.ruleType === "ADDON") {
-                    const modifier = rule.priceModifier ? Number(rule.priceModifier) : 0;
-                    const finalPrice = rule.quantityMultiplier ? modifier * quantity : modifier;
-                    totalPrice += finalPrice;
-                    breakdown.push({
-                        label: "Addon",
-                        value: finalPrice,
-                    });
-                } else if (rule.ruleType === "QUANTITY_TIER") {
-                    if (
-                        (!rule.minQuantity || quantity >= rule.minQuantity) &&
-                        (!rule.maxQuantity || quantity <= rule.maxQuantity)
-                    ) {
-                        const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
-                        const finalPrice = basePrice * quantity;
-                        totalPrice += finalPrice;
-                        breakdown.push({
-                            label: `Quantity tier (${rule.minQuantity || 0}-${rule.maxQuantity || "∞"})`,
-                            value: finalPrice,
-                        });
+            if (!matches) continue;
+
+            if (rule.ruleType === "BASE_PRICE" || rule.ruleType === "SPECIFICATION_COMBINATION") {
+                if (baseApplied) {
+                    continue;
+                }
+                const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
+                const finalPrice = rule.quantityMultiplier ? basePrice * quantity : basePrice;
+                totalPrice += finalPrice;
+                baseApplied = true;
+                breakdown.push({
+                    label: "Base Price",
+                    value: finalPrice,
+                });
+            } else if (rule.ruleType === "ADDON") {
+                const hasPageRange = rule.minQuantity != null || rule.maxQuantity != null;
+
+                if (hasPageRange) {
+                    const effectivePages =
+                        pageCount != null ? pageCount * (copies != null ? copies : 1) : null;
+                    if (effectivePages == null) {
+                        continue;
                     }
+                    const inRange =
+                        (rule.minQuantity == null || effectivePages >= rule.minQuantity) &&
+                        (rule.maxQuantity == null || effectivePages <= rule.maxQuantity);
+                    if (!inRange) {
+                        continue;
+                    }
+                }
+
+                const modifier = rule.priceModifier ? Number(rule.priceModifier) : 0;
+                const copiesForMultiplier = copies || 1;
+                const finalPrice = rule.quantityMultiplier ? modifier * copiesForMultiplier : modifier;
+                totalPrice += finalPrice;
+
+                const rangeLabel =
+                    hasPageRange
+                        ? ` (${rule.minQuantity ?? 0}-${rule.maxQuantity ?? "∞"} pages`
+                        : "";
+                const copiesLabel =
+                    rule.quantityMultiplier && copiesForMultiplier > 1
+                        ? (rangeLabel ? `) × ${copiesForMultiplier} copies` : ` × ${copiesForMultiplier} copies`)
+                        : rangeLabel
+                            ? ")"
+                            : "";
+
+                breakdown.push({
+                    label: `Addon${rangeLabel}${copiesLabel}`,
+                    value: finalPrice,
+                });
+            } else if (rule.ruleType === "QUANTITY_TIER") {
+                if (
+                    (!rule.minQuantity || quantity >= rule.minQuantity) &&
+                    (!rule.maxQuantity || quantity <= rule.maxQuantity)
+                ) {
+                    const basePrice = rule.basePrice ? Number(rule.basePrice) : 0;
+                    const finalPrice = basePrice * quantity;
+                    totalPrice += finalPrice;
+                    breakdown.push({
+                        label: `Quantity tier (${rule.minQuantity || 0}-${rule.maxQuantity || "∞"})`,
+                        value: finalPrice,
+                    });
                 }
             }
         }
