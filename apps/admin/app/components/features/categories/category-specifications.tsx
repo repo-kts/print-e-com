@@ -88,7 +88,7 @@ export function CategorySpecifications({ categoryId }: CategorySpecificationsPro
                 setLoading(true);
                 setError(null);
                 const [cat, specifications] = await Promise.all([
-                    getCategoryById(categoryId),
+                    getCategoryById(categoryId), 
                     getCategorySpecificationsApi(categoryId),
                 ]);
                 setCategory(cat);

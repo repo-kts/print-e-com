@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ProductGallery } from './ProductGallery';
 import { ProductFeatures } from './ProductFeatures';
 import { PriceBreakdown } from './print/PriceBreakdown';
@@ -11,6 +11,7 @@ import Breadcrumbs from '../Breadcrumbs';
 import { useRouter } from 'next/navigation';
 import ProductDocumentUpload, { FileDetail } from '../products/ProductDocumentUpload';
 import { BarsSpinner } from '../shared/BarsSpinner';
+import { toastError } from '@/lib/utils/toast';
 
 interface ProductPageTemplateProps {
     productData: Partial<ProductData>;
@@ -75,13 +76,27 @@ export const ProductPageTemplate: React.FC<ProductPageTemplateProps> = ({
 }) => {
     const router = useRouter();
     const outOfStock = isOutOfStock || (stock !== null && stock !== undefined && stock <= 0);
+    const prevOutOfStockRef = useRef<boolean | null>(null);
+
+    // Show toast error when product becomes out of stock after combination change
+    useEffect(() => {
+        // Only show toast if:
+        // 1. Product is now out of stock
+        // 2. It wasn't out of stock before (or this is the first check after a combination change)
+        // 3. We have a productId (meaning we're tracking stock)
+        if (outOfStock && prevOutOfStockRef.current === false && productId) {
+            toastError('This product is out of stock. Please select a different combination or contact us.');
+        }
+        // Update the previous value
+        prevOutOfStockRef.current = outOfStock;
+    }, [outOfStock, productId]);
 
     // Determine button disabled state and message
     const isButtonDisabled = outOfStock || !hasUploadedFiles || !areRequiredFieldsFilled || calculatingPrice;
     const getButtonText = (isAddToCart: boolean) => {
         if (outOfStock) return 'Out of Stock';
         if (isInCart && isAddToCart) return 'Go to Cart';
-        if (!hasUploadedFiles) return 'Upload the image first';
+        if (!hasUploadedFiles) return 'Upload the files first';
         if (!areRequiredFieldsFilled) return 'Please select the mandatory field';
         if (isAddToCart) return `Add to Cart - ₹${totalPrice.toFixed(2)}`;
         return 'Buy Now';

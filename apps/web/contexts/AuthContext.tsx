@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         isCheckingAuthRef.current = true;
         const token = getAuthToken();
+
         console.log('[AuthContext] Checking auth, token exists:', !!token);
 
         // Try to get user from cookie first for faster initial load

@@ -72,13 +72,27 @@ export interface Category {
 
 export interface PriceCalculationRequest {
     specifications: Record<string, any>;
-    quantity: number;
+    quantity: number; // Total quantity (pageCount × copies when files uploaded)
+    pageCount?: number; // Total pages from uploaded files
+    copies?: number; // Number of copies
 }
 
 export interface PriceCalculationResponse {
     totalPrice: number;
     breakdown: Array<{ label: string; value: number }>;
     quantity: number;
+}
+
+export interface CategoryAddon {
+    id: string;
+    categoryId: string;
+    ruleType: 'ADDON';
+    specificationValues: Record<string, any>;
+    priceModifier: number | null;
+    minQuantity: number | null;
+    maxQuantity: number | null;
+    isActive: boolean;
+    priority: number;
 }
 
 /**
@@ -107,6 +121,14 @@ export async function calculateCategoryPrice(
         throw new Error('Price calculation failed');
     }
     return response.data;
+}
+
+/**
+ * Get ADDON pricing rules for a category (used for displaying page range variations)
+ */
+export async function getCategoryAddons(categorySlug: string): Promise<CategoryAddon[]> {
+    const response = await get<CategoryAddon[]>(`/categories/${categorySlug}/addons`);
+    return response.data || [];
 }
 
 /**

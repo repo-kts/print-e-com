@@ -87,6 +87,24 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         };
     }, [isImageExpanded]);
 
+    // Show toast error when product becomes out of stock after variant/combination change
+    const prevStockRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (product) {
+            const isOutOfStock = product.stock <= 0;
+            const wasInStock = prevStockRef.current !== null && prevStockRef.current > 0;
+
+            // Only show toast if:
+            // 1. Product is now out of stock
+            // 2. It was in stock before (not on initial mount)
+            if (isOutOfStock && wasInStock) {
+                toastError('This product is out of stock. Please select a different combination or contact us.');
+            }
+            // Update the previous stock value
+            prevStockRef.current = product.stock;
+        }
+    }, [product?.stock, product]);
+
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const [uploadedFileDetails, setUploadedFileDetails] = useState<FileDetail[]>([]);
 
@@ -176,6 +194,12 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     // Handle add to cart - use already uploaded S3 keys
     const onAddToCart = async () => {
         if (!product) return;
+
+        // Check if product is out of stock
+        if (product.stock <= 0) {
+            toastError('This product is out of stock. Please select a different combination or contact us.');
+            return;
+        }
 
         // Get S3 keys from already uploaded files (files are uploaded immediately when selected)
         let s3Keys: string[] = [];

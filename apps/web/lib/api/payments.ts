@@ -16,6 +16,15 @@ export interface CreateRazorpayOrderFromCartRequest {
         quantity: number;
         customDesignUrl?: string;
         customText?: string;
+        metadata?: {
+            pageCount?: number;
+            copies?: number;
+            selectedAddons?: string[];
+            priceBreakdown?: Array<{
+                label: string;
+                value: number;
+            }>;
+        };
     }>;
     addressId: string;
     amount: number;

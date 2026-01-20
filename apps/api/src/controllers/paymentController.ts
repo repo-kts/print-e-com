@@ -235,10 +235,18 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
 
                 // Calculate order totals (same logic as createOrder)
                 let subtotal = 0;
-                const orderItems = [];
+                const orderItems: Array<{
+                    productId: string;
+                    variantId: string | null;
+                    quantity: number;
+                    price: number;
+                    customDesignUrl: string[];
+                    customText: string | null;
+                    metadata?: any;
+                }> = [];
 
                 for (const item of items) {
-                    const { productId, variantId, quantity, customDesignUrl, customText } = item;
+                    const { productId, variantId, quantity, customDesignUrl, customText, metadata } = item;
 
                     if (!productId || !quantity || quantity < 1) {
                         throw new ValidationError("Invalid order item");
@@ -284,6 +292,7 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
                         price: itemPrice,
                         customDesignUrl: normalizedUrls, // Use S3 URLs from cart items
                         customText: customText || null,
+                        metadata: metadata || undefined,
                     });
                 }
 
@@ -349,7 +358,15 @@ export const verifyPayment = async (req: Request, res: Response, next: NextFunct
                         razorpayOrderId: razorpay_order_id,
                         status: "PENDING_REVIEW",
                         items: {
-                            create: orderItems,
+                            create: orderItems.map((oi) => ({
+                                productId: oi.productId,
+                                variantId: oi.variantId,
+                                quantity: oi.quantity,
+                                price: oi.price,
+                                customDesignUrl: oi.customDesignUrl,
+                                customText: oi.customText,
+                                metadata: oi.metadata ?? undefined,
+                            })),
                         },
                         statusHistory: {
                             create: {

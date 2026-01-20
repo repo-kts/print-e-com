@@ -38,6 +38,15 @@ export interface OrderItem {
         id: string;
         name: string;
     } | null;
+    metadata?: {
+        pageCount?: number;
+        copies?: number;
+        selectedAddons?: string[];
+        priceBreakdown?: Array<{
+            label: string;
+            value: number;
+        }>;
+    } | null;
 }
 
 export interface Order {

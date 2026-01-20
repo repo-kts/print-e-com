@@ -163,6 +163,14 @@ function CheckoutPageContent() {
                     quantity: item.quantity,
                     customDesignUrl: item.customDesignUrl,
                     customText: item.customText,
+                    metadata:
+                        item.pageCount || item.copies || item.priceBreakdown
+                            ? {
+                                pageCount: item.pageCount,
+                                copies: item.copies,
+                                priceBreakdown: item.priceBreakdown,
+                            }
+                            : undefined,
                 })),
                 addressId: selectedAddressId,
                 amount: calculatedTotal,
