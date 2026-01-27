@@ -12,6 +12,14 @@ export interface CartItem {
     quantity: number;
     customDesignUrl?: string | string[]; // S3 URLs - can be array or string (backend stores as array)
     customText?: string;
+    hasAddon?: boolean;
+    addons?: string[];
+    metadata?: {
+        pageCount?: number;
+        copies?: number;
+        selectedAddons?: string[];
+        priceBreakdown?: Array<{ label: string; value: number }>;
+    } | null;
     createdAt: string;
     updatedAt: string;
     product?: {
@@ -48,6 +56,14 @@ export interface AddToCartData {
     quantity?: number;
     customDesignUrl?: string | string[]; // S3 URLs - can be array or string
     customText?: string;
+    hasAddon?: boolean;
+    addons?: string[];
+    metadata?: {
+        pageCount?: number;
+        copies?: number;
+        selectedAddons?: string[];
+        priceBreakdown?: Array<{ label: string; value: number }>;
+    };
 }
 
 export interface UpdateCartItemData {

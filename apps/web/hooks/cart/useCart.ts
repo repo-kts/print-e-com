@@ -29,6 +29,8 @@ export interface UseCartReturn {
     removeItem: (itemId: string) => Promise<boolean>;
     clearCartItems: () => Promise<boolean>;
     isProductInCart: (productName: string) => boolean;
+    hasAddons: boolean;
+    addons: string[];
 }
 
 export function useCart(): UseCartReturn {
@@ -37,6 +39,8 @@ export function useCart(): UseCartReturn {
     const [error, setError] = useState<string | null>(null);
     const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
     const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+    const [hasAddons, setHasAddons] = useState<boolean>(false);
+    const [addons, setAddons] = useState<string[]>([]);
 
     // Fetch cart data (with optional loading state control)
     const fetchCart = useCallback(async (setLoadingState = true) => {
@@ -51,6 +55,8 @@ export function useCart(): UseCartReturn {
                 // The API returns { cart, subtotal, itemCount }
                 const cartResponse = response.data as CartResponse;
                 setCart(cartResponse.cart);
+                setHasAddons(cartResponse.cart.items.some(item => item.hasAddon));
+                setAddons(cartResponse.cart.items.flatMap(item => item.addons || []));
             } else {
                 setError(response.error || 'Failed to fetch cart');
                 setCart(null);
@@ -215,5 +221,7 @@ export function useCart(): UseCartReturn {
         removeItem,
         clearCartItems,
         isProductInCart,
+        hasAddons,
+        addons,
     };
 }

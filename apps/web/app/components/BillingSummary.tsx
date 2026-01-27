@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useCart } from "@/contexts/CartContext";
 
 interface BillingSummaryProps {
     mrp: number;
@@ -33,6 +34,9 @@ export default function BillingSummary({
     const [orderComment, setOrderComment] = useState("");
     const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+    const { items, addons } = useCart();
+
+    console.log("addons----------------", items);
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
             <h2 className="text-xl font-hkgb font-bold text-gray-900 mb-6">Billing Summary</h2>
@@ -47,8 +51,17 @@ export default function BillingSummary({
                 )}
 
                 <div className="flex justify-between text-gray-600">
-                    <span>Subtotal</span>
+                    <span>Base Price Total</span>
                     <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                    <span>Addon Price Total</span>
+                    <span className="font-medium">
+                        ₹{
+                            // Calculate total addon price across all items by extracting price from addon IDs
+                            addons.reduce((acc, addon) => acc + Number(addon), 0).toFixed(2)
+                        }
+                    </span>
                 </div>
 
                 <div className="flex justify-between text-gray-600">

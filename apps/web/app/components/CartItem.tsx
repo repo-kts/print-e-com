@@ -216,6 +216,13 @@ export default function CartItem({
                                     </div>
                                 )}
                             </div>
+
+                            {item.hasAddon && <div className="text-xs text-gray-500">({item.addons?.length} addons)</div>}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {item.addons && item.addons.map((addon) => (
+                                    <div key={addon} className="text-xs text-gray-500">({addon})</div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
@@ -271,11 +278,70 @@ export default function CartItem({
                     )}
 
                     <div className="flex justify-between text-lg font-bold text-gray-900">
-                        <PriceDisplay currentPrice={itemPrice} />
-                        <QuantitySelector
+                        <div className="flex flex-col items-end text-right space-y-1 w-full">
+
+                            {/* Price breakdown */}
+                            <div className="flex flex-col items-end w-full space-y-0.5">
+
+                                {/* Individual price calculation */}
+                                <div className="flex flex-col items-end space-y-0.5 w-full">
+
+                                    {/* Show addons with names and prices if available */}
+                                    {item.metadata?.priceBreakdown && item.metadata.priceBreakdown.length > 0 && (
+                                        <div className="w-full text-xs flex flex-col items-end">
+                                            {item.metadata.priceBreakdown.map((breakdown, i) => (
+                                                <div key={i} className="flex items-center gap-1 justify-end text-gray-600">
+                                                    <span>+ {breakdown.label}:</span>
+                                                    <span>
+                                                        <PriceDisplay currentPrice={breakdown.value} />
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Fallback: Show addon names if no breakdown */}
+                                    {!item.metadata?.priceBreakdown && item.addons && item.addons.length > 0 && (
+                                        <div className="text-xs text-gray-600 flex flex-col items-end w-full">
+                                            {item.addons.map((addon, idx) => (
+                                                <div key={idx} className="flex justify-end items-center">
+                                                    <span>
+                                                        + {addon}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Total for this item (including quantity/pages/addons) */}
+                                    <div className="flex flex-row items-center gap-1 text-sm text-blue-800 font-semibold w-full justify-end mt-0.5">
+                                        <span>Total:</span>
+                                        <span>
+                                            <PriceDisplay
+                                                currentPrice={
+                                                    // Calculate total:
+                                                    (() => {
+                                                        let total = 0;
+                                                        // Add all priceBreakdown (addons etc.)
+                                                        if (item.metadata?.priceBreakdown && Array.isArray(item.metadata.priceBreakdown)) {
+                                                            total = item.metadata.priceBreakdown.reduce((acc, x) => acc + (x.value || 0), 0);
+                                                        }
+                                                        // Add addonsTotal once (not multiplied by quantity)
+                                                        return total;
+                                                    })()
+                                                }
+                                            />
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {/* <QuantitySelector
                             quantity={item.quantity}
                             onQuantityChange={(newQuantity) => onQuantityChange(item.id, newQuantity)}
-                        />
+                        /> */}
                     </div>
                 </div>
             </div>

@@ -24,6 +24,10 @@ export const getCart = async (req: Request, res: Response, next: NextFunction) =
                         },
                         variant: true,
                     },
+                    select: {
+                        hasAddon: true,
+                        addons: true,
+                    },
                 },
             },
         });
@@ -55,6 +59,21 @@ export const getCart = async (req: Request, res: Response, next: NextFunction) =
             const variantPrice = item.variant ? Number(item.variant.priceModifier) : 0;
             const itemPrice = (productPrice + variantPrice) * item.quantity;
             subtotal += itemPrice;
+
+
+            // WIP: Addon price calculation
+            // item.hasAddon && (
+            //     prisma.categorySpecification.findUnique({
+            //         where: {
+            //             id: item.addons[0],
+            //         },
+            //     })
+            //     .then((addon) => {
+            //         if (addon) {
+            //             subtotal += Number(addon);
+            //         }
+            //     })
+            // )
         });
 
         return sendSuccess(res, {
@@ -74,7 +93,7 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
             throw new UnauthorizedError("User not authenticated");
         }
 
-        const { productId, variantId, quantity = 1, customDesignUrl, customText } = req.body;
+        const { productId, variantId, quantity = 1, customDesignUrl, customText, hasAddon, addons, metadata } = req.body;
 
         if (!productId) {
             throw new ValidationError("Product ID is required");
@@ -164,6 +183,15 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
             // Merge or replace URLs (if new URLs provided, use them; otherwise keep existing)
             const finalUrls = newUrls.length > 0 ? newUrls : existingUrls;
 
+            // Normalize addons
+            const newAddonIds: string[] = Array.isArray(addons)
+                ? (addons as any[]).filter((id) => typeof id === 'string' && id.trim().length > 0) as string[]
+                : [];
+            const existingAddonIds: string[] = Array.isArray((existingItem as any).addons)
+                ? ((existingItem as any).addons as any[]).filter((id) => typeof id === 'string' && id.trim().length > 0) as string[]
+                : [];
+            const mergedAddons = Array.from(new Set([...existingAddonIds, ...newAddonIds]));
+
             // Update quantity
             cartItem = await prisma.cartItem.update({
                 where: { id: existingItem.id },
@@ -171,6 +199,9 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
                     quantity: existingItem.quantity + quantity,
                     customDesignUrl: finalUrls,
                     customText: customText || existingItem.customText,
+                    hasAddon: mergedAddons.length > 0 || Boolean(hasAddon),
+                    addons: mergedAddons,
+                    metadata: metadata !== undefined ? metadata : (existingItem as any).metadata,
                 },
                 include: {
                     product: {
@@ -194,6 +225,11 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
                 }
             }
 
+            // Normalize addons for new item
+            const addonIds: string[] = Array.isArray(addons)
+                ? (addons as any[]).filter((id) => typeof id === 'string' && id.trim().length > 0) as string[]
+                : [];
+
             cartItem = await prisma.cartItem.create({
                 data: {
                     cartId: cart.id,
@@ -202,6 +238,9 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
                     quantity,
                     customDesignUrl: normalizedUrls,
                     customText: customText || null,
+                    hasAddon: addonIds.length > 0 || Boolean(hasAddon),
+                    addons: addonIds,
+                    metadata: metadata !== undefined ? metadata : null,
                 },
                 include: {
                     product: {

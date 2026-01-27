@@ -27,7 +27,10 @@ function CartPageContent() {
         updateQuantity,
         removeItem,
         refetch,
+        hasAddons,
+        addons,
     } = useCart();
+
 
     const { confirm, ConfirmDialog } = useConfirm();
     const router = useRouter();

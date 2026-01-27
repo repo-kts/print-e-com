@@ -164,12 +164,8 @@ function CheckoutPageContent() {
                     customDesignUrl: item.customDesignUrl,
                     customText: item.customText,
                     metadata:
-                        item.pageCount || item.copies || item.priceBreakdown
-                            ? {
-                                pageCount: item.pageCount,
-                                copies: item.copies,
-                                priceBreakdown: item.priceBreakdown,
-                            }
+                        item.metadata && Array.isArray(item.metadata.priceBreakdown)
+                            ? item.metadata
                             : undefined,
                 })),
                 addressId: selectedAddressId,
