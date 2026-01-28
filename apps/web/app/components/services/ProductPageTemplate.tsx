@@ -74,7 +74,6 @@ export const ProductPageTemplate: React.FC<ProductPageTemplateProps> = ({
     calculatingPrice = false,
     isUploadingFiles = false,
 }) => {
-    console.log('🔍 price items----------------------------------------', priceItems)
     const router = useRouter();
     const outOfStock = isOutOfStock || (stock !== null && stock !== undefined && stock <= 0);
     const prevOutOfStockRef = useRef<boolean | null>(null);

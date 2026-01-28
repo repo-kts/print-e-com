@@ -70,13 +70,27 @@ function CheckoutPageContent() {
         }, 0);
     }, [cartItems]);
 
-    const subtotal = useMemo(() => {
-        return cartItems.reduce((sum, item) => {
-            const price = Number(item.product?.sellingPrice || item.product?.basePrice || 0);
-            const variantModifier = Number(item.variant?.priceModifier || 0);
-            const itemPrice = price + variantModifier;
-            return sum + itemPrice * item.quantity;
-        }, 0);
+    const { baseSubtotal, addonsSubtotal, subtotal } = useMemo(() => {
+        let base = 0;
+        let addons = 0;
+
+        for (const item of cartItems as any[]) {
+            if (item.pricing) {
+                base += Number(item.pricing.baseTotal || 0);
+                addons += Number(item.pricing.addonTotal || 0);
+            } else {
+                const price = Number(item.product?.sellingPrice || item.product?.basePrice || 0);
+                const variantModifier = Number(item.variant?.priceModifier || 0);
+                const itemPrice = price + variantModifier;
+                base += itemPrice * item.quantity;
+            }
+        }
+
+        return {
+            baseSubtotal: base,
+            addonsSubtotal: addons,
+            subtotal: base + addons,
+        };
     }, [cartItems]);
 
     const itemCount = cartItems.length;
@@ -383,7 +397,8 @@ function CheckoutPageContent() {
                         {/* Billing Summary - Expanded */}
                         <BillingSummary
                             mrp={mrp || 0}
-                            subtotal={subtotal || 0}
+                            subtotal={baseSubtotal || 0}
+                            addonsSubtotal={addonsSubtotal || 0}
                             discount={discountAmount || 0}
                             couponApplied={appliedCoupon ? discountAmount : 0}
                             shipping={selectedShippingFee || 0}

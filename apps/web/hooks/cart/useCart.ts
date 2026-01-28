@@ -23,14 +23,14 @@ export interface UseCartReturn {
     updatingItemId: string | null;
     removingItemId: string | null;
     total: number;
+    baseSubtotal: number;
+    addonsSubtotal: number;
     itemCount: number;
     refetch: () => Promise<void>;
     updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
     removeItem: (itemId: string) => Promise<boolean>;
     clearCartItems: () => Promise<boolean>;
     isProductInCart: (productName: string) => boolean;
-    hasAddons: boolean;
-    addons: string[];
 }
 
 export function useCart(): UseCartReturn {
@@ -39,8 +39,9 @@ export function useCart(): UseCartReturn {
     const [error, setError] = useState<string | null>(null);
     const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
     const [removingItemId, setRemovingItemId] = useState<string | null>(null);
-    const [hasAddons, setHasAddons] = useState<boolean>(false);
-    const [addons, setAddons] = useState<string[]>([]);
+    const [cartSubtotal, setCartSubtotal] = useState<number>(0);
+    const [baseSubtotal, setBaseSubtotal] = useState<number>(0);
+    const [addonsSubtotal, setAddonsSubtotal] = useState<number>(0);
 
     // Fetch cart data (with optional loading state control)
     const fetchCart = useCallback(async (setLoadingState = true) => {
@@ -52,16 +53,17 @@ export function useCart(): UseCartReturn {
             const response = await getCart();
 
             if (response.success && response.data) {
-                // The API returns { cart, subtotal, itemCount }
                 const cartResponse = response.data as CartResponse;
                 setCart(cartResponse.cart);
-                setHasAddons(cartResponse.cart.items.some(item => item.hasAddon));
-                setAddons(cartResponse.cart.items.flatMap(item => item.addons || []));
+                setCartSubtotal(cartResponse.subtotal ?? 0);
+                setBaseSubtotal(cartResponse.baseSubtotal ?? 0);
+                setAddonsSubtotal(cartResponse.addonsSubtotal ?? 0);
             } else {
                 setError(response.error || 'Failed to fetch cart');
                 setCart(null);
             }
         } catch (err) {
+            console.log("cart err", err)
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
             setError(errorMessage);
             setCart(null);
@@ -194,13 +196,22 @@ export function useCart(): UseCartReturn {
     }, [items]);
 
     const total = useMemo(() => {
-        return items.reduce((sum, item) => {
+        if (cartSubtotal && cartSubtotal > 0) {
+            return cartSubtotal;
+        }
+
+        // Fallback: compute from items (base + addons) if backend subtotal not available
+        return items.reduce((sum, item: any) => {
+            if (item.pricing) {
+                return sum + Number(item.pricing.total || 0);
+            }
+
             const price = item.product?.sellingPrice || item.product?.basePrice || 0;
             const variantModifier = item.variant?.priceModifier || 0;
             const itemPrice = Number(price) + Number(variantModifier);
             return sum + itemPrice * item.quantity;
         }, 0);
-    }, [items]);
+    }, [cartSubtotal, items]);
 
     // Helper method to check if a product is already in cart
     const isProductInCart = useCallback((productName: string): boolean => {
@@ -215,13 +226,13 @@ export function useCart(): UseCartReturn {
         updatingItemId,
         removingItemId,
         total,
+        baseSubtotal,
+        addonsSubtotal,
         itemCount,
         refetch: () => fetchCart(true),
         updateQuantity,
         removeItem,
         clearCartItems,
         isProductInCart,
-        hasAddons,
-        addons,
     };
 }

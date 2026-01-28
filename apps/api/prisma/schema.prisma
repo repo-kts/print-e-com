@@ -161,8 +161,10 @@ model CategoryPricingRule {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  cartItems CartItem[] @relation("CartItemAddons")
+  orderItems OrderItem[] @relation("OrderItemAddons")
 
   @@index([categoryId])
   @@index([categoryId, isActive])
@@ -425,7 +427,7 @@ model OrderItem {
   customDesignUrl String[] @default([]) // Array of S3 URLs for multiple files
   customText      String?
   hasAddon        Boolean  @default(false)
-  addons          String[] @default([]) // Array of addon pricing rule IDs
+  addons          CategoryPricingRule[] @relation("OrderItemAddons")
   metadata        Json?    // Additional pricing metadata (pageCount, copies, addons, breakdown)
   createdAt       DateTime @default(now())
 
@@ -507,7 +509,7 @@ model CartItem {
   customDesignUrl String[] @default([]) // Array of S3 URLs for multiple files
   customText      String?
   hasAddon        Boolean  @default(false)
-  addons          String[] @default([]) // Array of addon pricing rule IDs
+  addons          CategoryPricingRule[] @relation("CartItemAddons")
   metadata        Json?    // Pricing metadata (pageCount, copies, selectedAddons, breakdown)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
