@@ -36,6 +36,8 @@ const allowedOrigins = [
     "https://print-e-com-web.vercel.app",
     "https://admin-pagz.vercel.app",
     "https://pagz.vercel.app",
+    "https://slateblue-lapwing-350500.hostingersite.com",
+    "https://pagz.in",
     // Allow additional origins from environment variable (comma-separated)
     ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim()) : []),
 ];
