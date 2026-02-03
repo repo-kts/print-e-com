@@ -847,6 +847,8 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                                     <ProductDocumentUpload
                                         onFileSelect={handleFileSelect}
                                         maxSizeMB={50}
+                                        uploadedFilesS3={uploadedFileDetails}
+                                        setUploadedFilesS3={setUploadedFileDetails}
                                     />
 
                                     {/* Size/Variant Selector */}

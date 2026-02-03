@@ -5,7 +5,7 @@
     "private": true,
     "scripts": {
         "dev": "bun --watch src/index.ts",
-        "build": "prisma generate --schema=prisma/schema.prisma && bun scripts/generate-openapi.ts && bun build src/index.ts --outdir dist --target bun",
+        "build": "prisma generate --schema=prisma/schema.prisma && bun build src/index.ts --outdir dist --target bun",
         "build:vercel": "prisma generate --schema=prisma/schema.prisma",
         "postinstall": "prisma generate --schema=prisma/schema.prisma",
         "start": "bun run dist/index.js",
